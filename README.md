@@ -9,8 +9,8 @@ ProSpectra Web is the administrative interface for winegrowers and managers. The
 - **Export reports** in PDF or Excel.
 
 ## Technologies Used
-- **Frontend Framework**: React
-- **Backend**: Node.js
+- **Frontend Framework**: React/Next.js
+- **Backend**: Node.js/Express
 - **Database**:
 - **Authentication**:
 
