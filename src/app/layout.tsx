@@ -1,10 +1,15 @@
 import { ReactNode } from "react";
-import '../styles/globals.css';  // Certifique-se de que o caminho está correto
+import { SidebarProvider } from "@/components/ui/sidebar";
+import '../styles/globals.css';
 
-export default function Layout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <SidebarProvider>
+          {children}
+        </SidebarProvider>
+      </body>
     </html>
   );
 }

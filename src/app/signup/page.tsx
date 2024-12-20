@@ -25,7 +25,7 @@ export default function SignUp() {
   };
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-r from-[#B4FD8F] to-[#B3C1FF]">
+    <div className="relative min-h-screen bg-[#eaeaea]">
       {/* Container para a animação de ondas */}
       <div id="waves-container" className="absolute inset-0 overflow-hidden -z-10">
         <svg
@@ -136,7 +136,7 @@ export default function SignUp() {
               </div>
 
               <button
-                className="w-full bg-[#2c642f] hover:bg-[#005304] focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center focus:ring-[#005304] text-white transition-all duration-300 ease-in-out"
+                className="w-full bg-[#007100] hover:bg-[#005304] focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center focus:ring-[#005304] text-white transition-all duration-300 ease-in-out"
                 type="submit"
               >
                 Create an account

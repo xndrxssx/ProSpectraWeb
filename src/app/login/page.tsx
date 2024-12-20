@@ -23,7 +23,7 @@ export default function Login() {
   };
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-r from-[#B4FD8F] to-[#B3C1FF]">
+    <div className="relative min-h-screen bg-[#eaeaea]">
       {/* Container para a animação de ondas */}
       <div id="waves-container" className="absolute inset-0 overflow-hidden -z-10">
         <svg
@@ -66,7 +66,7 @@ export default function Login() {
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-10 rounded-lg z-10 backdrop-blur-sm bg-white/5 border border-solid border-white">
         <div className="text-[#001E01] ">
           <h1 className="text-4xl font-bold mb-4">Login</h1>
-          <p className="mb-6">Welcome back! Please login to your account.</p>
+          <p className="mb-6">Bem-vindo!</p>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-900">
@@ -97,19 +97,19 @@ export default function Login() {
 
             <button
               type="submit"
-              className="w-full bg-[#D8DFFF] text-[#001E01] p-3 rounded-lg hover:bg-[#b3ffe8] transition-all duration-300 ease-in-out"
+              className="w-full bg-[#007100] text-[#ffffff] p-3 rounded-lg hover:bg-[#b3ffe8] transition-all duration-300 ease-in-out"
             >
               Login
             </button>
           </form>
           <div className="mt-4">
             <p>
-              Don't have an account?{" "}
+              Não possui cadastro?{" "}
               <Link
                 href="/signup"
                 className="text-[#007100] hover:text-[#005304] font-medium"
               >
-                Sign up
+                Cadastre-se
               </Link>
             </p>
           </div>
