@@ -1,8 +1,10 @@
+"use client";
+
 import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen bg-[#eaeaea] ">
+    <div className="relative min-h-screen w-full bg-[#eaeaea] ">
       {/* Container para a animação de ondas */}
       <div id="waves-container" className="absolute inset-0 overflow-hidden -z-10">
         <svg

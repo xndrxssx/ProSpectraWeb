@@ -127,19 +127,21 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <button
-            onClick={applyFilters}
-            className="w-full bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600"
-          >
-            Aplicar Filtros
-          </button>
+          <div className="flex justify-center items-center">
+            <button 
+              onClick={applyFilters} 
+              className="transition-all duration-350 ease-in-out bg-[#165a16] text-white px-6 py-2 rounded-md hover:bg-[#1f7e1f]">
+              Aplicar Filtros
+            </button>
+          </div>
+
 
           {/* Tabs para alternar entre visualizações */}
           <div className="mt-6 flex justify-center space-x-4">
             <button
               onClick={() => setActiveTab("gráficos")}
               className={`py-2 px-4 rounded-lg ${
-                activeTab === "gráficos" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"
+                activeTab === "gráficos" ? "border-2 border-[#165a16]" : "bg-gray-200 text-gray-700"
               }`}
             >
               Gráficos
@@ -147,7 +149,7 @@ export default function Dashboard() {
             <button
               onClick={() => setActiveTab("relatórios")}
               className={`py-2 px-4 rounded-lg ${
-                activeTab === "relatórios" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"
+                activeTab === "relatórios" ? "border-2 border-[#165a16]" : "bg-gray-200 text-gray-700"
               }`}
             >
               Relatórios
@@ -155,7 +157,7 @@ export default function Dashboard() {
             <button
               onClick={() => setActiveTab("comparações")}
               className={`py-2 px-4 rounded-lg ${
-                activeTab === "comparações" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"
+                activeTab === "comparações" ? "border-2 border-[#165a16]" : "bg-gray-200 text-gray-700"
               }`}
             >
               Comparações

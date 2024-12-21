@@ -2,7 +2,7 @@
 
 import { Calendar, Home, Inbox, Settings } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, SidebarHeader, SidebarMenuSub, SidebarMenuSubItem } from "@/components/ui/sidebar";
-import { AudioWaveform, HardDriveUpload, ChartColumn } from "lucide-react";
+import { AudioWaveform, HardDriveUpload, ChartColumn, History, FileText, SearchCheck, Users } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@radix-ui/react-collapsible";
 import Link from "next/link"; // Usando o Link do Next.js
 import { useState } from "react"; // Importando o hook useState
@@ -51,18 +51,50 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
                         <Link href="/local" className="text-white">Local</Link>
                       </SidebarMenuSubItem>
                       <SidebarMenuSubItem>
-                        <Link href="/dispositivo" className="text-white">Dispositivo</Link>
+                        <Link href="/device" className="text-white">Dispositivo</Link>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </SidebarMenuItem>
               </Collapsible>
 
+              {/* Aplicar modelos */}
+              <SidebarMenuItem>
+                <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
+                  <SearchCheck className="mr-2" /> 
+                  <Link href="/apply-models" className="">Aplicar predições</Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
               {/* Menu de Dashboard */}
               <SidebarMenuItem>
                 <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
                   <ChartColumn className="mr-2" /> 
                   <Link href="/dashboard" className="">Dashboard</Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Menu de histórico */}
+              <SidebarMenuItem>
+                <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
+                  <History className="mr-2" /> 
+                  <Link href="/history" className="">Histórico</Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Menu de histórico */}
+              <SidebarMenuItem>
+                <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
+                  <FileText className="mr-2" /> 
+                  <Link href="/reports" className="">Exportar</Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Aplicar modelos */}
+              <SidebarMenuItem>
+                <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
+                  <Users className="mr-2" /> 
+                  <Link href="/users-management" className="">Gerenciar usuários</Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -78,13 +110,13 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
                   <CollapsibleContent>
                     <SidebarMenuSub>
                       <SidebarMenuSubItem>
-                        <Link href="/nova-variedade" className="text-white">Adicionar variedade</Link>
+                        <Link href="/new-variety" className="text-white">Adicionar variedade</Link>
                       </SidebarMenuSubItem>
                       <SidebarMenuSubItem>
-                        <Link href="/editar-filtro" className="text-white">Editar filtro</Link>
+                        <Link href="/edit-filter" className="text-white">Editar filtro</Link>
                       </SidebarMenuSubItem>
                       <SidebarMenuSubItem>
-                        <Link href="/editar-modelo" className="text-white">Editar modelo preditivo</Link>
+                        <Link href="/edit-model" className="text-white">Editar modelo preditivo</Link>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>
                   </CollapsibleContent>
@@ -97,7 +129,7 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
 
       <SidebarFooter className="!p-0 m-0">
         <div className="text-center text-xs p-0 m-0 bg-[#165a16] text-[#ffffff]">
-          <p>© 2024 PROSPECTRA - Todos os direitos reservados</p>
+          <p className="text-white">© 2024 PROSPECTRA - Todos os direitos reservados</p>
         </div>
       </SidebarFooter>
     </Sidebar>

@@ -13,7 +13,7 @@ export default function Home() {
 
         {/* Conteúdo principal */}
         <main className="flex-1 p-10">
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-8 shadow-lg border border-white">
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-8 shadow-lg">
             <h1 className="text-4xl font-bold mb-4 text-center">Bem vindo ao ProSpectraWeb!</h1>
             <p className="text-lg text-center">
               Escolha uma opção no menu para começar sua análise.
