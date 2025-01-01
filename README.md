@@ -26,21 +26,9 @@ Here are some screenshots of the ProSpectra Web interface:
 
 ![prospectra home](https://github.com/user-attachments/assets/c0030ab6-518d-49f4-b602-817efe221802)
 
-### Home
+### Administrator Home
 
-![prospectra login](https://github.com/user-attachments/assets/e8be5ce1-f25d-4f51-8321-cc92ebd9316a)
-
-## Images
-
-Here are some screenshots of the ProSpectra Web interface:
-
-### Landing Page
-
-![prospectra home](https://github.com/user-attachments/assets/c0030ab6-518d-49f4-b602-817efe221802)
-
-### Home
-
-![prospectra login](https://github.com/user-attachments/assets/e8be5ce1-f25d-4f51-8321-cc92ebd9316a)
+![prospectra login](https://github.com/user-attachments/assets/97f0f17e-387c-421d-9eb1-2b1a2c34f3af)
 
 ## Getting Started
 
