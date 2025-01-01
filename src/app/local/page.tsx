@@ -3,8 +3,9 @@
 
 import { useState } from "react";
 import CustomSidebar from "@/components/Sidebar";
+import withAuth from "@/components/withAuth";
 
-export default function EnviarDadosLocais() {
+function SentLocalData() {
   const [file, setFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     variedade: "",
@@ -123,3 +124,5 @@ export default function EnviarDadosLocais() {
     </div>
   );
 }
+
+export default withAuth(SentLocalData);

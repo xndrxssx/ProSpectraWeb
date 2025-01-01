@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation"; // Para navegação do App Router.
 import CustomSidebar from "@/components/Sidebar";
+import withAuth from "@/components/withAuth";
 
-export default function EditarFiltro() {
+function EditModel() {
   const [filtroNome, setFiltroNome] = useState("");
   const [parametros, setParametros] = useState("");
   const [erro, setErro] = useState("");
@@ -76,3 +77,4 @@ export default function EditarFiltro() {
     </div>
   );
 }
+export default withAuth(EditModel);

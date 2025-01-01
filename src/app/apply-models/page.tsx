@@ -3,8 +3,9 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import CustomSidebar from "@/components/Sidebar";
+import withAuth from "@/components/withAuth";
 
-const ApplyModelsPage = () => {
+function ApplyModels (){
   const router = useRouter();
   const [filters, setFilters] = useState({
     model: "",
@@ -159,4 +160,4 @@ const ApplyModelsPage = () => {
   );
 };
 
-export default ApplyModelsPage;
+export default withAuth(ApplyModels);

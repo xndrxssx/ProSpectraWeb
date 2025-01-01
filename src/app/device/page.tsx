@@ -3,8 +3,9 @@
 
 import { useState } from "react";
 import CustomSidebar from "@/components/Sidebar";
+import withAuth from "@/components/withAuth";
 
-export default function EnviarDadosDispositivo() {
+function SentDataDevice() {
   const [formData, setFormData] = useState({
     variedade: "",
     data: "",
@@ -151,3 +152,5 @@ export default function EnviarDadosDispositivo() {
     </div>
   );
 }
+
+export default withAuth(SentDataDevice);

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import CustomSidebar from "@/components/Sidebar";
+import withAuth from "@/components/withAuth";
 
 interface User {
   id: number;
@@ -10,7 +11,7 @@ interface User {
   permissions: string[];
 }
 
-const ManageUsers = () => {
+function ManageUsers () {
   const [users, setUsers] = useState<User[]>([
     { id: 1, name: "Admin", email: "admin@example.com", permissions: ["Admin"] },
   ]);
@@ -169,4 +170,4 @@ const ManageUsers = () => {
   );
 };
 
-export default ManageUsers;
+export default withAuth(ManageUsers);

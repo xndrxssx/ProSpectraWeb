@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import CustomSidebar from "@/components/Sidebar";
+import withAuth from "@/components/withAuth";
 
-export default function AdicionarVariedade() {
+function AddVariety() {
   const [nomeVariedade, setNomeVariedade] = useState("");
   const [descricao, setDescricao] = useState("");
   const [atributos, setAtributos] = useState("");
@@ -87,3 +88,4 @@ export default function AdicionarVariedade() {
     </div>
   );
 }
+export default withAuth(AddVariety);

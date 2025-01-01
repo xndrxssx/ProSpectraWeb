@@ -3,8 +3,9 @@
 
 import { useState } from "react";
 import CustomSidebar from "@/components/Sidebar";
+import withAuth from "@/components/withAuth";
 
-export default function Dashboard() {
+function Dashboard() {
   const [filters, setFilters] = useState({
     variedade: "",
     data: "",
@@ -171,3 +172,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+export default withAuth(Dashboard);

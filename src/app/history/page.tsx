@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import CustomSidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
+import withAuth from "@/components/withAuth";
 
 // Definição do tipo Medicao
 interface Medicao {
@@ -14,7 +15,7 @@ interface Medicao {
   coleta: string;
 }
 
-export default function HistoricoMedicoes() {
+function MeasurementHistory() {
   const [medicoes, setMedicoes] = useState<Medicao[]>([]); // Lista de medições tipada.
   const [filtros, setFiltros] = useState({ data: "", variedade: "" }); // Filtros de busca.
   const [erro, setErro] = useState(""); // Mensagem de erro.
@@ -176,3 +177,5 @@ export default function HistoricoMedicoes() {
     </div>
   );
 }
+
+export default withAuth(MeasurementHistory);

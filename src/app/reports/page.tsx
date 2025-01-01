@@ -4,9 +4,10 @@ import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import jsPDF from "jspdf";
 import ExcelJS from "exceljs";
-import CustomSidebar from "@/components/Sidebar"; // Certifique-se de que o caminho está correto
+import CustomSidebar from "@/components/Sidebar"; 
+import withAuth from "@/components/withAuth";
 
-const ExportarRelatorios = () => {
+function ExportReports () {
   const [selectedFormat, setSelectedFormat] = useState("pdf");
   const [filters, setFilters] = useState({
     startDate: "",
@@ -190,4 +191,4 @@ const ExportarRelatorios = () => {
   );
 };
 
-export default ExportarRelatorios;
+export default withAuth(ExportReports);

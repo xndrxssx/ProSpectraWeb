@@ -2,10 +2,12 @@
 
 import { Calendar, Home, Inbox, Settings } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, SidebarHeader, SidebarMenuSub, SidebarMenuSubItem } from "@/components/ui/sidebar";
-import { AudioWaveform, HardDriveUpload, ChartColumn, History, FileText, SearchCheck, Users } from "lucide-react";
+import { AudioWaveform, HardDriveUpload, ChartColumn, History, FileText, SearchCheck, Users, LogOut } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@radix-ui/react-collapsible";
 import Link from "next/link"; // Usando o Link do Next.js
 import { useState } from "react"; // Importando o hook useState
+import { useRouter } from "next/navigation";
+import useAuth from '@/hooks/useAuth'; // Importando o hook useAuth
 
 export function CustomSidebar({ children }: { children?: React.ReactNode }) {
   // Gerencia o estado de qual submenu está aberto
@@ -16,13 +18,27 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
     setOpenCollapsible((prev) => (prev === id ? null : id)); // Fecha o submenu se já estiver aberto
   };
 
+  const router = useRouter();
+
+  const handleLogout = () => {
+    // Limpar dados de autenticação
+    localStorage.removeItem("token"); // Ou use cookies, conforme necessário
+
+    // Redirecionar para a página de login
+    router.push("/login");
+  };
+
+  const { isAdmin, userType, setToken, getToken } = useAuth();
+
+  // Exemplo de como utilizar
+  console.log("isAdmin:", isAdmin);
+  console.log("userType:", userType);
+
   return (
     <Sidebar className="w-45">
-      {/* Header com Nome e Ícone */}
       <SidebarHeader className="flex items-center gap-2 p-4 bg-[#165a16] text-[#ffffff]">
-        {/* Ícone do cabeçalho */}
         <AudioWaveform className="w-5 h-5" />
-        <h1 className="text-base font-bold text-[#ffffff]">PROSPECTRA</h1> {/* Nome */}
+        <h1 className="text-base font-bold text-[#ffffff]">PROSPECTRA</h1>
       </SidebarHeader>
 
       <SidebarContent className="bg-[#165a16] text-[#ffffff]">
@@ -44,7 +60,6 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
                       <HardDriveUpload className="mr-2" /> Enviar dados
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
-
                   <CollapsibleContent>
                     <SidebarMenuSub>
                       <SidebarMenuSubItem>
@@ -61,67 +76,82 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
               {/* Aplicar modelos */}
               <SidebarMenuItem>
                 <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
-                  <SearchCheck className="mr-2" /> 
+                  <SearchCheck className="mr-2" />
                   <Link href="/apply-models" className="">Aplicar predições</Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Menu de Dashboard */}
+              {/* Dashboard */}
               <SidebarMenuItem>
                 <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
-                  <ChartColumn className="mr-2" /> 
+                  <ChartColumn className="mr-2" />
                   <Link href="/dashboard" className="">Dashboard</Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Menu de histórico */}
+              {/* Exportar */}
               <SidebarMenuItem>
                 <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
-                  <History className="mr-2" /> 
-                  <Link href="/history" className="">Histórico</Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Menu de histórico */}
-              <SidebarMenuItem>
-                <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
-                  <FileText className="mr-2" /> 
+                  <FileText className="mr-2" />
                   <Link href="/reports" className="">Exportar</Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Aplicar modelos */}
+              {/* Mostrar opções de admin apenas se isAdmin for verdadeiro */}
+              {isAdmin && (
+                <>
+                  {/* Histórico */}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
+                      <History className="mr-2" />
+                      <Link href="/history" className="">Histórico</Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  {/* Gerenciar usuários */}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
+                      <Users className="mr-2" />
+                      <Link href="/users-management" className="">Gerenciar usuários</Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  {/* Submenu de Configurações */}
+                  <Collapsible open={openCollapsible === 'settings'} onOpenChange={() => handleCollapsibleToggle('settings')}>
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton className="hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
+                          <Settings className="mr-2" /> Configurações
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          <SidebarMenuSubItem>
+                            <Link href="/new-variety" className="text-white">Adicionar variedade</Link>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <Link href="/edit-filter" className="text-white">Editar filtro</Link>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <Link href="/edit-model" className="text-white">Editar modelo preditivo</Link>
+                          </SidebarMenuSubItem>
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                </>
+              )}
+
+              {/* Botão de logout */}
               <SidebarMenuItem>
-                <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
-                  <Users className="mr-2" /> 
-                  <Link href="/users-management" className="">Gerenciar usuários</Link>
+                <SidebarMenuButton
+                  onClick={handleLogout}
+                  className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out"
+                >
+                  <LogOut className="mr-2" />
+                  <span>Sair</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-
-              {/* Submenu de Configurações */}
-              <Collapsible open={openCollapsible === 'settings'} onOpenChange={() => handleCollapsibleToggle('settings')}>
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton className="hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
-                      <Settings className="mr-2" /> Configurações
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      <SidebarMenuSubItem>
-                        <Link href="/new-variety" className="text-white">Adicionar variedade</Link>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <Link href="/edit-filter" className="text-white">Editar filtro</Link>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <Link href="/edit-model" className="text-white">Editar modelo preditivo</Link>
-                      </SidebarMenuSubItem>
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
