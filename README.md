@@ -13,8 +13,22 @@ ProSpectra Web is the administrative interface for winegrowers and managers. The
 - **Backend**: Node.js/Express
 - **Database**: MySQL
 - **Authentication**: JWT
+- **Database**: MySQL
+- **Authentication**: JWT
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Images
+
+Here are some screenshots of the ProSpectra Web interface:
+
+### Landing Page
+
+![prospectra home](https://github.com/user-attachments/assets/c0030ab6-518d-49f4-b602-817efe221802)
+
+### Home
+
+![prospectra login](https://github.com/user-attachments/assets/e8be5ce1-f25d-4f51-8321-cc92ebd9316a)
 
 ## Images
 
