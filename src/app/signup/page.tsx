@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -9,19 +10,75 @@ export default function SignUp() {
     password: "",
     confirmPassword: "",
     terms: false,
+    userType: "produtor",
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value, checked, type } = e.target;
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false); // Controle do popup
+
+  const router = useRouter(); // Inicializando o router
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { id, value, type } = e.target;
+    const isChecked = type === "checkbox" ? (e.target as HTMLInputElement).checked : undefined;
+
     setFormData((prevData) => ({
       ...prevData,
-      [id]: type === "checkbox" ? checked : value,
+      [id]: type === "checkbox" ? isChecked : value,
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form data submitted:", formData);
+
+    if (formData.password !== formData.confirmPassword) {
+      setErrorMessage("As senhas não coincidem.");
+      return;
+    }
+
+    console.log("Dados enviados:", formData);
+
+    try {
+      const response = await fetch("/api/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password,
+          userType: formData.userType,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setErrorMessage(data.error || "Erro ao criar conta.");
+      } else {
+        setSuccessMessage(data.message || "Conta criada com sucesso!");
+        setErrorMessage("");
+        setFormData({
+          username: "",
+          password: "",
+          confirmPassword: "",
+          terms: false,
+          userType: "produtor",
+        });
+
+        // Exibir o popup de sucesso
+        setIsSuccess(true);
+      }
+    } catch (error) {
+      setErrorMessage("Erro ao conectar ao servidor.");
+    }
+  };
+
+  // Função para fechar o popup e redirecionar usando o router
+  const handlePopupClose = () => {
+    setIsSuccess(false);
+    router.push("/login"); // Redireciona para a página de login usando router.push
   };
 
   return (
@@ -69,13 +126,17 @@ export default function SignUp() {
         <div className="flex items-center justify-center min-h-screen px-6 py-8 mx-auto lg:py-0">
           <div className="w-full max-w-md bg-white rounded-lg shadow-md border sm:max-w-md xl:p-0 backdrop-blur-sm bg-white/5">
             <div className="p-6 space-y-4 md:space-y-6 sm:p-8">
+              {errorMessage && (
+                <div className="text-red-500 text-sm">{errorMessage}</div>
+              )}
+              {successMessage && (
+                <div className="text-green-500 text-sm">{successMessage}</div>
+              )}
               <p className="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl">
-                Create an account
+                Crie sua conta
               </p>
               <div>
-                <label className="block mb-2 text-sm font-medium text-gray-900">
-                  Your username
-                </label>
+                <label className="block mb-2 text-sm font-medium text-gray-900">Nome de usuário</label>
                 <input
                   placeholder="JohnDoe"
                   className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg block w-full p-2.5"
@@ -86,9 +147,7 @@ export default function SignUp() {
                 />
               </div>
               <div>
-                <label className="block mb-2 text-sm font-medium text-gray-900">
-                  Password
-                </label>
+                <label className="block mb-2 text-sm font-medium text-gray-900">Senha</label>
                 <input
                   className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg block w-full p-2.5"
                   placeholder="••••••••"
@@ -99,9 +158,7 @@ export default function SignUp() {
                 />
               </div>
               <div>
-                <label className="block mb-2 text-sm font-medium text-gray-900">
-                  Confirm password
-                </label>
+                <label className="block mb-2 text-sm font-medium text-gray-900">Confirme a senha</label>
                 <input
                   className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg block w-full p-2.5"
                   placeholder="••••••••"
@@ -110,6 +167,33 @@ export default function SignUp() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                 />
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-900">Selecione tipo de usuário</label>
+                <div className="flex space-x-4">
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="userType"
+                      name="userType"
+                      value="produtor"
+                      checked={formData.userType === "produtor"}
+                      onChange={handleChange}
+                    />
+                    <span>Produtor</span>
+                  </label>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="userType"
+                      name="userType"
+                      value="administrador"
+                      checked={formData.userType === "administrador"}
+                      onChange={handleChange}
+                    />
+                    <span>Administrador</span>
+                  </label>
+                </div>
               </div>
               <div className="flex items-start">
                 <div className="flex items-center h-5">
@@ -124,27 +208,42 @@ export default function SignUp() {
                 </div>
                 <div className="ml-3 text-sm">
                   <label className="font-light text-[#001E01]">
-                    I accept the 
+                    Eu aceito os{" "}
                     <a
                       href="#"
                       className="font-medium text-primary-600 hover:underline text-primary-500"
                     >
-                       Terms and Conditions
+                      Termos e Condições
                     </a>
                   </label>
                 </div>
               </div>
-
               <button
-                className="w-full bg-[#007100] hover:bg-[#005304] focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center focus:ring-[#005304] text-white transition-all duration-300 ease-in-out"
+                className="w-full bg-[#007100] hover:bg-[#005304] focus:outline-none font-medium rounded-lg text-sm px-5 py-2.5 text-center text-white transition-all duration-300 ease-in-out"
                 type="submit"
               >
-                Create an account
+                Criar conta
               </button>
             </div>
           </div>
         </div>
       </form>
+
+      {/* Popup de Sucesso */}
+      {isSuccess && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center justify-center space-y-4">
+          <p className="text-lg text-center">Conta criada com sucesso!</p>
+          <button
+            onClick={handlePopupClose}
+            className="bg-[#007100] hover:bg-[#005304] focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center focus:ring-[#005304] text-white transition-all duration-300 ease-in-out"
+          >
+            Ir para Login
+          </button>
+        </div>
+      </div>
+      
+      )}
     </div>
   );
 }

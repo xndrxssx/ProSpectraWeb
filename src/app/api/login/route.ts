@@ -27,7 +27,11 @@ export async function POST(req: Request) {
 
     // Se a senha for correta, gere o JWT
     const token = jwt.sign(
-      { userId: user.id, username: user.username },
+      { 
+        userId: user.id, 
+        username: user.username, 
+        userType: user.userType 
+      },
       process.env.JWT_SECRET!,
       { expiresIn: '1h' }
     );

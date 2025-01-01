@@ -2,12 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import useAuth from '@/hooks/useAuth'; // Importando o hook useAuth
 
 export default function Login() {
+  const { setToken, handleLogout } = useAuth(); // Pega a função setToken do contexto
   const [formData, setFormData] = useState({
     username: "",
     password: "",
   });
+
+  const router = useRouter(); // Inicializa o useRouter
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -17,9 +22,35 @@ export default function Login() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form data submitted:", formData);
+  
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+  
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Login bem-sucedido:", data);
+        
+        // Decodifica e armazena o token no estado do contexto e no localStorage
+        setToken(data.token);
+
+        // Redireciona o usuário para a página /home após o login bem-sucedido
+        router.push('/home');
+      } else {
+        const errorData = await response.json();
+        alert(`Erro: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error("Erro ao fazer login:", error);
+      alert("Erro ao conectar ao servidor.");
+    }
   };
 
   return (
@@ -97,7 +128,7 @@ export default function Login() {
 
             <button
               type="submit"
-              className="w-full bg-[#007100] text-[#ffffff] p-3 rounded-lg hover:bg-[#b3ffe8] transition-all duration-300 ease-in-out"
+              className="w-full bg-[#007100] text-[#ffffff] p-3 rounded-lg hover:bg-[#005304] transition-all duration-300 ease-in-out"
             >
               Login
             </button>

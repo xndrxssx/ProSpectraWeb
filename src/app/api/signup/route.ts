@@ -1,37 +1,49 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import bcrypt from 'bcrypt';
+import bcrypt from "bcrypt";
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
   try {
-    const { username, password } = await req.json();
+    const { username, password, userType } = await req.json();
 
-    // Verificar se o usuário já existe no banco de dados
+    if (!username || !password || !userType) {
+      return NextResponse.json({ error: "Todos os campos são obrigatórios" }, { status: 400 });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Verificar se o usuário já existe
     const existingUser = await prisma.user.findUnique({
       where: { username },
     });
 
     if (existingUser) {
-      return NextResponse.json({ error: "Username is already taken" }, { status: 400 });
+      return NextResponse.json(
+        { error: "O nome de usuário já está em uso" },
+        { status: 400 }
+      );
     }
-
-    // Criptografar a senha antes de salvar no banco
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Criar o usuário
     const newUser = await prisma.user.create({
       data: {
         username,
         password: hashedPassword,
+        userType,
       },
     });
 
-    // Retornar uma resposta de sucesso
-    return NextResponse.json({ message: "User created successfully", userId: newUser.id }, { status: 201 });
+    return NextResponse.json(
+      { message: "Usuário criado com sucesso", userId: newUser.id },
+      { status: 201 }
+    );
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("Erro ao criar usuário:", error);
+    return NextResponse.json(
+      { error: "Erro interno do servidor" },
+      { status: 500 }
+    );
   }
 }
