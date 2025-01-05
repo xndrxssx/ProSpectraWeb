@@ -33,6 +33,12 @@ export async function POST(req: Request) {
         password: hashedPassword,
         userType,
       },
+      select: {
+        id: true, // Garante que o ID seja retornado
+        username: true,
+        password: true,
+        userType: true,
+      }
     });
 
     return NextResponse.json(
