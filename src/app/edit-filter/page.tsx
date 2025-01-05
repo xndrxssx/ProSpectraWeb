@@ -78,4 +78,4 @@ function EditFilter() {
   );
 }
 
-export default withAuth(EditFilter);
+export default withAuth(EditFilter, ["/edit-filter"]);

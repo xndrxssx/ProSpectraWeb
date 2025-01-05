@@ -88,4 +88,4 @@ function AddVariety() {
     </div>
   );
 }
-export default withAuth(AddVariety);
+export default withAuth(AddVariety, ["/new-variety"]);

@@ -77,4 +77,4 @@ function EditModel() {
     </div>
   );
 }
-export default withAuth(EditModel);
+export default withAuth(EditModel, ["/edit-model"]);

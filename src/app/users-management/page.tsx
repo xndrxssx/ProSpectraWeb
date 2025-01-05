@@ -170,4 +170,4 @@ function ManageUsers () {
   );
 };
 
-export default withAuth(ManageUsers);
+export default withAuth(ManageUsers, ["/users-management"]);
