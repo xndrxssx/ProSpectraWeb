@@ -97,17 +97,17 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Mostrar opções de admin apenas se isAdmin for verdadeiro */}
-              {isAdmin && (
-                <>
-                  {/* Histórico */}
-                  <SidebarMenuItem>
+              {/* Histórico */}
+              <SidebarMenuItem>
                     <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
                       <History className="mr-2" />
                       <Link href="/history" className="">Histórico</Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
+              {/* Mostrar opções de admin apenas se isAdmin for verdadeiro */}
+              {isAdmin && (
+                <>
                   {/* Gerenciar usuários */}
                   <SidebarMenuItem>
                     <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
