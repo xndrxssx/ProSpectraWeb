@@ -13,3 +13,10 @@ model user {
   password  String
   userType  String   @default("produtor")
 }
+
+model Variety {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String   @db.Text
+  attributes  Json     @default("[]") // Adicionando um valor padrão (array vazio)
+}

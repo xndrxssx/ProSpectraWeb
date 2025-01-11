@@ -127,7 +127,7 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
                       <CollapsibleContent>
                         <SidebarMenuSub>
                           <SidebarMenuSubItem>
-                            <Link href="/new-variety" className="text-white">Adicionar variedade</Link>
+                            <Link href="/edit-variety" className="text-white">Editar variedade</Link>
                           </SidebarMenuSubItem>
                           <SidebarMenuSubItem>
                             <Link href="/edit-filter" className="text-white">Editar filtro</Link>
