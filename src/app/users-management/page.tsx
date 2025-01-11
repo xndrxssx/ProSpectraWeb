@@ -140,50 +140,14 @@ function ManageUsers() {
       <CustomSidebar />
       <div className="flex-1 flex flex-col items-center p-8">
         <h1 className="text-3xl font-bold mb-4">Gerenciar Usuários</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl min-h-[720px]">
-          {/* Lista de usuários */}
-          <div className="bg-white/10 w-full backdrop-blur-sm rounded-lg p-8 shadow-lg mb-6">
-            <h2 className="text-xl font-semibold mb-4">Usuários Cadastrados</h2>
-            <div className="h-[570px] overflow-y-auto"> {/* Ajuste a altura conforme necessário */}
-              {users.length > 0 ? (
-                <ul className="space-y-4">
-                  {users.map((user) => (
-                    <li key={user.id} className="border-b pb-2 last:border-b-0">
-                      <div>
-                        <p className="font-semibold">{user.username}</p>
-                        <p className="text-gray-500 text-sm">Tipo: {user.userType}</p>
-                        <div className="flex space-x-4 mt-2">
-                          <button
-                            onClick={() =>
-                              handleUpdateUserType(user.id, user.userType === "produtor" ? "admin" : "produtor")
-                            }
-                            className="bg-[#007100] hover:bg-[#005304] rounded-sm text-sm px-4 py-2 text-center text-white transition-all duration-300 ease-in-out"
-                          >
-                            Alterar tipo
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUser(user.id)}
-                            className="bg-red-600 hover:bg-red-800 rounded-sm text-sm px-4 py-2 text-center text-white transition-all duration-300 ease-in-out"
-                          >
-                            Excluir
-                          </button>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-gray-600">Nenhum usuário cadastrado.</p>
-              )}
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl min-h-screen">
           {/* Formulário para adicionar usuário */}
-          <div className="bg-white/10 w-full backdrop-blur-sm rounded-lg p-8 shadow-lg mb-6">
-            <h2 className="text-xl font-semibold mb-4">Adicionar Usuário</h2>
+          <div className="bg-white/10 w-full  backdrop-blur-sm rounded-lg p-8 shadow-lg mb-6 ">
+            <h2 className="text-2xl font-semibold mb-4 text-center">Adicionar Usuário</h2>
             {error && <div className="text-red-500 mb-4">{error}</div>}
             {success && <div className="text-green-500 mb-4">{success}</div>}
   
-            <form onSubmit={handleAddUser} className="space-y-4">
+            <form onSubmit={handleAddUser} className="min-h-screen space-y-4">
               <div>
                 <label htmlFor="username" className="block text-sm font-medium">Nome</label>
                 <input
@@ -226,6 +190,45 @@ function ManageUsers() {
                 Adicionar Usuário
               </button>
             </form>
+          </div>
+          {/* Lista de usuários */}
+          <div className="bg-white/10 max-w-lg w-full min-h-screen backdrop-blur-sm rounded-lg p-8 shadow-lg flex-1 ">
+            <h2 className="text-2xl font-semibold mb-4 text-center">Usuários Cadastrados</h2>
+            <div className="overflow-y-auto"> {/* Ajuste a altura conforme necessário */}
+              {users.length > 0 ? (
+                <ul className="space-y-4">
+                  {users.map((user) => (
+                    <li key={user.id} className="border-b pb-2 last:border-b-0">
+                      <div className="flex justify-between items-center"> {/* Alinhando as informações à esquerda e os botões à direita */}
+                        <div>
+                          <p className="font-semibold">{user.username}</p>
+                          <p className="text-gray-500 text-sm">Tipo: {user.userType}</p>
+                        </div>
+                        <div className="flex space-x-4"> {/* Alinhando os botões ao lado */}
+                          <button
+                            onClick={() =>
+                              handleUpdateUserType(user.id, user.userType === "produtor" ? "admin" : "produtor")
+                            }
+                            className="bg-[#007100] hover:bg-[#005304] rounded-sm text-sm px-4 py-2 text-center text-white transition-all duration-300 ease-in-out"
+                          >
+                            Alterar tipo
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="bg-red-600 hover:bg-red-800 rounded-sm text-sm px-4 py-2 text-center text-white transition-all duration-300 ease-in-out"
+                          >
+                            Excluir
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-600">Nenhum usuário cadastrado.</p>
+              )}
+            </div>
+
           </div>
         </div>
       </div>
