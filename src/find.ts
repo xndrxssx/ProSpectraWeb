@@ -1,7 +1,11 @@
 import mongoose, { ConnectOptions } from 'mongoose';
 
-// Conectar ao MongoDB Atlas
-const mongoURI = 'mongodb+srv://andressalcc0710:root@clusterspectra.3veda.mongodb.net/spectroscopy';
+// Garantir que a variável de ambiente MONGODB_URI esteja definida
+const mongoURI = process.env.MONGODB_URI;
+
+if (!mongoURI) {
+  throw new Error('MongoDB URI não está definido nas variáveis de ambiente.');
+}
 
 mongoose
   .connect(mongoURI, {
