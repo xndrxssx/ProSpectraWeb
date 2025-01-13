@@ -9,14 +9,28 @@ ProSpectra Web is the administrative interface for winegrowers and managers. The
 - **Export reports** in PDF or Excel.
 
 ## Technologies Used
-- **Frontend Framework**: React/Next.js
-- **Backend**: Node.js/Express
-- **Database**: MySQL
-- **Authentication**: JWT
-- **Database**: MySQL
-- **Authentication**: JWT
-
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+- **Frontend Framework**: Next.js 15
+  - Using **Turbopack** for faster builds.
+- **Backend**: 
+  - Next.js API Routes.
+  - Prisma ORM for database management.
+- **Database**:
+  - MySQL (Prisma).
+  - MongoDB (Mongoose for ODM).
+- **Authentication**: 
+  - JWT (JSON Web Token).
+  - NextAuth.js for authentication flow.
+- **Styling**:
+  - Tailwind CSS (with plugins like `tailwind-merge` and `tailwindcss-animate`). 
+- **UI Components**:
+  - Radix UI (Dialog, Tooltip, Label, etc.).
+  - shadcn UI.
+- **State Management**: Context API (from React).
+- **Development Tools**:
+  - TypeScript for type safety.
+  - ESLint for linting.
+- **Platform**:
+  - Node.js 20 for executing JavaScript code.
 
 ## Images
 
@@ -45,6 +59,72 @@ pnpm install
 # or
 bun install
 ```
+
+### `.env` File Configuration
+
+This project uses a `.env` file to store sensitive environment variables. Follow the instructions below to properly configure the file:
+
+1. **Create the `.env` file in the root of the project**.
+2. **Add the necessary environment variables** by copying the example below:
+
+```env
+# Database URL (e.g. MySQL) for Prisma
+DATABASE_URL="<mysql>://root:root@localhost:3306/prospectra"
+
+# Secret key for JWT
+JWT_SECRET="super_secret_key_123"
+
+# Server port (if you do not use the default 3000)
+PORT=3000
+
+# Environment (development, production, etc.)
+NODE_ENV=development
+
+# MongoDB database URL for integration
+MONGODB_URI="mongodb+srv://<user>:<password>@<cluester.something>.mongodb.net/"
+```
+
+### Prisma Configuration
+
+This project uses [Prisma](https://www.prisma.io/) as an ORM to interact with the database. Follow the steps below to configure Prisma for this project.
+
+#### 1. Install Prisma
+
+Ensure you have Prisma CLI installed globally or locally in your project. If it's not already installed, run:
+
+```bash
+npm install prisma --save-dev
+npx prisma init
+```
+
+#### 2. Update the .env File
+
+Prisma relies on the DATABASE_URL environment variable to connect to your database.
+
+#### 3. Prisma Schema
+
+The Prisma schema is located in the prisma/schema.prisma file. This file defines your data models and their relationships.
+
+#### 4. Run Migrations
+
+To apply changes from your Prisma schema to the database, run:
+
+```
+npx prisma migrate dev --name init
+```
+This will:
+
+- Create the necessary tables in your database.
+- Track migrations to keep the schema in sync.
+
+#### 5. Generate Prisma Client
+
+Generate the Prisma Client to use it in your code:
+```
+npx prisma generate
+```
+
+
 
 ### Running the Development Server
 
