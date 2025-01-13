@@ -132,8 +132,9 @@ function EditVariety() {
   return (
     <div className="min-h-screen w-full flex bg-[#eaeaea] text-[#001E01]">
       <CustomSidebar />
-      <main className="flex-1 flex items-start justify-center space-x-8 p-8">
-        <div className="bg-white/10 max-w-lg w-full backdrop-blur-sm rounded-lg p-8 shadow-lg flex-1">
+      <main className="flex-1 flex items-center justify-center">
+        <div className="flex w-full max-w-4xl">
+          <div className="bg-white/10 w-5/6 backdrop-blur-sm rounded-lg p-8 shadow-lg">
           <h1 className="text-2xl font-bold mb-4 text-center">
             Adicionar ou Editar Variedade
           </h1>
@@ -188,8 +189,8 @@ function EditVariety() {
           </form>
         </div>
 
-        <div className="bg-white/10 max-w-lg w-full backdrop-blur-sm rounded-lg p-8 shadow-lg flex-1">
-          <h2 className="text-2xl font-bold mb-4 text-center">Variedades Cadastradas</h2>
+        <div className="w-4/5 ml-8 bg-white/10 backdrop-blur-sm rounded-lg p-8 shadow-lg">
+          <h2 className="text-xl font-bold mb-4">Variedades Cadastradas</h2>
           <ul className="space-y-6">
             {variedades.map((variety) => (
               <li key={variety.id} className="mb-4 flex justify-between items-center space-x-3">
@@ -201,25 +202,26 @@ function EditVariety() {
                 </p>
                 </div>
                 <div className="flex space-x-4 mt-2">
-                  <button
-                    onClick={() => variety.id !== undefined && handleDelete(variety.id)}
-                    className="bg-red-600 hover:bg-red-800 rounded-sm text-sm px-4 py-2 text-center text-white transition-all duration-300 ease-in-out"
-                  >
-                    Deletar
-                  </button>
-                  <button
+                <button
                     onClick={() => handleEdit(variety)}
                     className="bg-[#007100] hover:bg-[#005304] rounded-sm text-sm px-4 py-2 text-center text-white transition-all duration-300 ease-in-out"
                   >
                     Editar
+                  </button>
+                  <button
+                    onClick={() => variety.id !== undefined && handleDelete(variety.id)}
+                    className="bg-red-600 hover:bg-red-800 rounded-sm text-sm px-4 py-2 text-center text-white transition-all duration-300 ease-in-out"
+                  >
+                    Excluir
                   </button>
                 </div>
               </li>
             ))}
           </ul>
         </div>
+        </div>
       </main>
-    </div>
+          </div>
   );
 }
 

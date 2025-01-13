@@ -136,20 +136,19 @@ function ManageUsers() {
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-gray-100 overflow-hidden"> {/* Trancando overflow da página inteira */}
+    <div className="min-h-screen w-full flex bg-[#eaeaea]"> 
       <CustomSidebar />
-      <div className="flex-1 flex flex-col items-center p-8">
-        <h1 className="text-3xl font-bold mb-4">Gerenciar Usuários</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl min-h-screen">
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex w-full max-w-4xl">
           {/* Formulário para adicionar usuário */}
-          <div className="bg-white/10 w-full  backdrop-blur-sm rounded-lg p-8 shadow-lg mb-6 ">
-            <h2 className="text-2xl font-semibold mb-4 text-center">Adicionar Usuário</h2>
+          <div className="bg-white/10 w-2/3 backdrop-blur-sm rounded-lg p-8 shadow-lg">
+            <h2 className="text-2xl font-bold mb-4 text-center">Adicionar Usuário</h2>
             {error && <div className="text-red-500 mb-4">{error}</div>}
             {success && <div className="text-green-500 mb-4">{success}</div>}
   
-            <form onSubmit={handleAddUser} className="min-h-screen space-y-4">
+            <form onSubmit={handleAddUser} className="space-y-4">
               <div>
-                <label htmlFor="username" className="block text-sm font-medium">Nome</label>
+                <label htmlFor="username" className="block text-sm font-medium mb-2">Nome</label>
                 <input
                   type="text"
                   id="username"
@@ -160,7 +159,7 @@ function ManageUsers() {
                 />
               </div>
               <div>
-                <label htmlFor="password" className="block text-sm font-medium">Senha</label>
+                <label htmlFor="password" className="block text-sm font-medium mb-2">Senha</label>
                 <input
                   type="password"
                   id="password"
@@ -171,7 +170,7 @@ function ManageUsers() {
                 />
               </div>
               <div>
-                <label htmlFor="userType" className="block text-sm font-medium">Tipo de Usuário</label>
+                <label htmlFor="userType" className="block text-sm font-medium mb-2">Tipo de Usuário</label>
                 <select
                   id="userType"
                   name="userType"
@@ -185,16 +184,16 @@ function ManageUsers() {
               </div>
               <button
                 type="submit"
-                className="w-full bg-[#007100] hover:bg-[#005304] font-medium rounded-lg text-base px-5 py-2.5 text-center text-white transition-all duration-300 ease-in-out"
+                className="mt-6 w-full bg-[#165a16] text-white py-2 px-4 rounded-lg hover:bg-[#1f7e1f] transition-all duration-400 ease-in-out"
               >
                 Adicionar Usuário
               </button>
             </form>
           </div>
           {/* Lista de usuários */}
-          <div className="bg-white/10 max-w-lg w-full min-h-screen backdrop-blur-sm rounded-lg p-8 shadow-lg flex-1 ">
-            <h2 className="text-2xl font-semibold mb-4 text-center">Usuários Cadastrados</h2>
-            <div className="overflow-y-auto"> {/* Ajuste a altura conforme necessário */}
+          <div className="w-2/3 ml-8 bg-white/10 backdrop-blur-sm rounded-lg p-8 shadow-lg">
+            <h2 className="text-xl font-bold mb-4">Usuários Cadastrados</h2>
+            <div className=""> 
               {users.length > 0 ? (
                 <ul className="space-y-4">
                   {users.map((user) => (
@@ -209,9 +208,9 @@ function ManageUsers() {
                             onClick={() =>
                               handleUpdateUserType(user.id, user.userType === "produtor" ? "admin" : "produtor")
                             }
-                            className="bg-[#007100] hover:bg-[#005304] rounded-sm text-sm px-4 py-2 text-center text-white transition-all duration-300 ease-in-out"
+                            className="bg-[#165a16] hover:bg-[#1f7e1f] rounded-sm text-sm px-4 py-2 text-center text-white transition-all duration-300 ease-in-out"
                           >
-                            Alterar tipo
+                            Alterar
                           </button>
                           <button
                             onClick={() => handleDeleteUser(user.id)}
