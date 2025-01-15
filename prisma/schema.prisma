@@ -1,5 +1,9 @@
-generator client {
+generator js_client {
   provider = "prisma-client-js"
+}
+
+generator py_client {
+  provider = "prisma-client-py"
 }
 
 datasource db {
@@ -27,4 +31,16 @@ model Filter {
   type       String   // 'MSC', 'SNV', ou 'SG'
   parameters Json
   createdAt  DateTime @default(now())
+}
+
+model Spectra {
+  id          Int      @id @default(autoincrement())
+  name        String
+  content    Json  // Para armazenar os dados espectrais
+  variety   String
+  datetime        DateTime
+  local       String
+  filter      String?
+  graph     String?
+  createdAt    DateTime @default(now())
 }

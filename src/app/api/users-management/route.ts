@@ -74,7 +74,7 @@ export async function POST(req: Request) {
       });
   
       return NextResponse.json(
-        { message: "Usuário criado com sucesso", user: newUser },  // O ID é passado aqui
+        { message: "Usuário criado com sucesso", user: newUser },
         { status: 201 }
       );
     } catch (error) {
@@ -115,4 +115,3 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
     }
   }
-  
