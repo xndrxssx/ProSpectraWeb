@@ -16,7 +16,6 @@ ProSpectra Web is the administrative interface for winegrowers and managers. The
   - Prisma ORM for database management.
 - **Database**:
   - MySQL (Prisma).
-  - MongoDB (Mongoose for ODM).
 - **Authentication**: 
   - JWT (JSON Web Token).
   - NextAuth.js for authentication flow.
@@ -80,8 +79,6 @@ PORT=3000
 # Environment (development, production, etc.)
 NODE_ENV=development
 
-# MongoDB database URL for integration
-MONGODB_URI="mongodb+srv://<user>:<password>@<cluester.something>.mongodb.net/"
 ```
 
 ### Prisma Configuration

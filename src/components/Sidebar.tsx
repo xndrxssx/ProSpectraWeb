@@ -133,7 +133,7 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
                             <Link href="/edit-filter" className="text-white">Editar filtro</Link>
                           </SidebarMenuSubItem>
                           <SidebarMenuSubItem>
-                            <Link href="/edit-model" className="text-white">Editar modelo preditivo</Link>
+                            <Link href="/edit-model" className="text-white">Treinar modelo preditivo</Link>
                           </SidebarMenuSubItem>
                         </SidebarMenuSub>
                       </CollapsibleContent>

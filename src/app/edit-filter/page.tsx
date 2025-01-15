@@ -57,7 +57,7 @@ function EditFilter() {
         body: JSON.stringify({
           name: filtroNome,
           type: filtroTipo,
-          parameters: parametros,
+          parameters: parametros, // Adicionando parâmetros
         }),
       });
 
@@ -73,7 +73,11 @@ function EditFilter() {
           mode: 'interp',
           cval: 0.0,
         });
-        fetchFilters(); // Atualizar a lista de filtros SG
+
+        // Adiciona o novo filtro manualmente na lista de filtros
+        const newFilter = await response.json(); // Supondo que o filtro criado seja retornado
+        setFiltrosSG((prevFilters) => [...prevFilters, newFilter]);
+
       } else {
         setErro("Ocorreu um erro ao salvar o filtro.");
       }
@@ -82,6 +86,7 @@ function EditFilter() {
       setErro("Ocorreu um erro. Tente novamente.");
     }
   };
+
 
   const handleDelete = async (id: string) => {
     try {

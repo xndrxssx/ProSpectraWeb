@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma"; // Ajuste o caminho para o seu arquivo de configuração do Prisma
-import { variety } from "@prisma/client"; // Importando o tipo Variety
+import { Variety } from "@prisma/client"; // Importando o tipo Variety
 
 export async function GET() {
   try {
     // Recupera todas as variedades com o tipo correto
     const varieties = await prisma.variety.findMany();
+    // console.log("Variedades encontradas no banco:", varieties);
 
     // Mapear as variedades para ajustar os atributos
     const varietiesWithAttributes = varieties.map((variety: any) => {
@@ -25,7 +26,9 @@ export async function GET() {
       return { ...variety, attributes };
     });
 
+    // console.log("Variedades com atributos:", varietiesWithAttributes);
     return NextResponse.json(varietiesWithAttributes);
+
   } catch (error) {
     console.error("Erro ao buscar variedades:", error);
     return NextResponse.json({ error: "Erro ao buscar variedades." }, { status: 500 });

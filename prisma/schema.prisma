@@ -20,3 +20,11 @@ model Variety {
   description String   @db.Text
   attributes  Json     @default("[]") // Adicionando um valor padrão (array vazio)
 }
+
+model Filter {
+  id         Int      @id @default(autoincrement())
+  name       String
+  type       String   // 'MSC', 'SNV', ou 'SG'
+  parameters Json
+  createdAt  DateTime @default(now())
+}
