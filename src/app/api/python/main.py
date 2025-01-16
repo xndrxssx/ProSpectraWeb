@@ -1,13 +1,22 @@
+import json
 from prisma import Prisma
 from fastapi import FastAPI
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 from .services import create_spectra, apply_msc, apply_snv, apply_sg, plot_filtered_data
 from .models import SpectraData
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 prisma = Prisma()
+
+@app.on_event("startup")
+async def startup():
+    await prisma.connect()
+
+@app.on_event("shutdown")
+async def shutdown():
+    await prisma.disconnect()
 
 # Configuração do CORS
 origins = [
@@ -25,13 +34,8 @@ app.add_middleware(
 
 @app.post("/api/save-data")
 async def save_data(data: SpectraData):
-    # Conectando ao banco de dados
-    await prisma.connect()
-    users = await prisma.user.find_many()
-    print(users)
-
     # Criando o objeto spectra (se necessário, utilizando a função create_spectra)
-    spectra = create_spectra(data.dict())  # Se você precisar modificar os dados antes de salvar
+    spectra = create_spectra(data.model_dump())  # Se você precisar modificar os dados antes de salvar
 
     # Aplicação do filtro
     filter_type = data.filter or "none"
@@ -42,8 +46,14 @@ async def save_data(data: SpectraData):
     elif filter_type == "SNV":
         filtered_data = apply_snv(data_values)
     elif filter_type == "SG":
-        sg_params = data.dict().get("sgParams", {})
+        sg_params = data.model_dump().get("sgParams", {})
         filtered_data = apply_sg(data_values, sg_params)
+    else:
+        filtered_data = data.content
+
+    # Se filtered_data não for um objeto JSON válido, converta para JSON
+    if isinstance(filtered_data, np.ndarray):
+        filtered_data = filtered_data.tolist()  # Converte o array NumPy para uma lista Python
 
     # Gerando o gráfico
     wl = np.linspace(350, 2500, data_values.shape[1])
@@ -55,17 +65,14 @@ async def save_data(data: SpectraData):
     saved_spectra = await prisma.spectra.create(
         data={
             "name": data.name,
-            "content": data.content,
+            "content": json.dumps(filtered_data),  # Convertendo para JSON
             "variety": data.variety,
             "datetime": datetime_obj,
             "local": data.local,
             "filter": data.filter,
-            "graph": "example_graph_string",  # Substitua pelo valor correto
-            "createdAt": datetime.utcnow(),
+            "graph": img_str,  # Substitua pelo valor correto
+            "createdAt": datetime.now(timezone.utc),
         }
     )
-
-    # Desconectando do Prisma
-    await prisma.disconnect()
 
     return {"message": "Dados e gráfico salvos com sucesso!", "id": saved_spectra.id}

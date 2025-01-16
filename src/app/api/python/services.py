@@ -3,18 +3,18 @@ import pandas as pd
 from scipy.signal import savgol_filter
 import base64
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, timezone
 import matplotlib.pyplot as plt
 
 def create_spectra(data):
     return {
-        "nome": data["nome"],
-        "conteudo": data["conteudo"],
-        "variedade": data["variedade"],
-        "data": data["data"],
+        "nome": data["name"],
+        "conteudo": data["content"],
+        "variedade": data["variety"],
+        "data": data["datetime"],
         "local": data["local"],
-        "criadoEm": datetime.now(),
-        "filtro": data.get("filtro", []),
+        "criadoEm": datetime.now(timezone.utc),
+        "filtro": data.get("filter", []),
         "grafico": data.get("grafico", "")
     }
 
@@ -41,6 +41,8 @@ def apply_sg(data, params):
     return savgol_filter(data, window_length=params['window_length'], polyorder=params['polyorder'], deriv=params['deriv'], delta=params['delta'], axis=params['axis'], mode=params['mode'],cval=params['cval'])
 
 def plot_filtered_data(filtered_data, wl):
+    filtered_data = np.array(filtered_data)
+    
     plt.figure(figsize=(9, 5))
     plt.plot(wl, filtered_data.T)
     plt.xlabel("Comprimento de onda (nm)", size=14)

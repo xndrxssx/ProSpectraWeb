@@ -3,7 +3,7 @@ from typing import Optional
 
 class SpectraData(BaseModel):
     name: str
-    content: dict  # JSON para armazenar os dados espectrais
+    content: list[list[float]]  # Alterado de dict para list[list[float]]
     variety: str
     datetime: str  # String que será convertida para DateTime
     local: str

@@ -41,6 +41,6 @@ model Spectra {
   datetime        DateTime
   local       String
   filter      String?
-  graph     String?
+  graph     String?  @db.Text
   createdAt    DateTime @default(now())
 }

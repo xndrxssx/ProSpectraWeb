@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Papa from "papaparse"; // Biblioteca para manipular CSVs
+import * as d3 from "d3"; // Biblioteca para manipular CSVs
 import ExcelJS from "exceljs"; // Biblioteca para manipular arquivos Excel
 import CustomSidebar from "@/components/Sidebar";
 import withAuth from "@/components/withAuth";
@@ -47,58 +47,97 @@ function SentLocalData() {
     const selectedFile = event.target.files?.[0] || null;
     setFile(selectedFile);
     setError("");
-  
-    if (selectedFile) {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const binaryStr = e.target?.result as ArrayBuffer;
-  
-        if (selectedFile.type.includes("excel")) {
-          // Process Excel with ExcelJS
-          const workbook = new ExcelJS.Workbook();
-          await workbook.xlsx.load(binaryStr); // Load the Excel file
-  
-          const worksheet = workbook.worksheets[0]; // Get the first sheet
-          const data: string[][] = [];
-  
-          worksheet.eachRow((row, rowNumber) => {
-            const rowData: string[] = [];
-            row.eachCell({ includeEmpty: true }, (cell) => {
-              rowData.push(cell.text); // Extract the text from the cell
-            });
-            data.push(rowData);
-          });
-  
-          // Convert data to numbers
-          const dadosComoNumeros = converterParaNumeros(data);
-          setTableData(dadosComoNumeros);
-        } else if (selectedFile.type.includes("csv")) {
-          // Process CSV with PapaParse
-          Papa.parse<string[]>(selectedFile, {
-            complete: (results) => {
-              const dadosComoStrings = results.data;
-              const dadosComoNumeros = converterParaNumeros(dadosComoStrings);
-              setTableData(dadosComoNumeros);
-            },
-            skipEmptyLines: true,
-          });
-        }
-      };
-      reader.readAsArrayBuffer(selectedFile); // Use readAsArrayBuffer for Excel processing
-    }
-  };    
 
+    if (selectedFile) {
+        const reader = new FileReader();
+
+        reader.onload = async (e) => {
+            const result = e.target?.result;
+
+            // Verifique se o arquivo é do tipo Excel (XLSX)
+            if (
+                selectedFile.type.includes("excel") || 
+                selectedFile.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ) {
+              try {
+                const binaryStr = result as ArrayBuffer;
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(binaryStr); // Tenta carregar o arquivo Excel
+                const worksheet = workbook.worksheets[0];
+                const data: string[][] = [];
+              
+                worksheet.eachRow((row) => {
+                  const rowData: string[] = [];
+                  row.eachCell({ includeEmpty: true }, (cell) => {
+                    rowData.push(cell.text); // Certifique-se de que está acessando o texto
+                  });
+                  data.push(rowData);
+                });
+              
+                const dadosComoNumeros = converterParaNumeros(data);
+                setTableData(dadosComoNumeros);
+              } catch (error) {
+                console.error("Erro ao processar arquivo Excel:", error);
+                setError("Erro ao processar arquivo Excel. Verifique se o arquivo está correto.");
+              }
+            }
+        //     // Verifique se o arquivo é CSV
+        //     else if (
+        //       selectedFile.type.includes("csv") || 
+        //       selectedFile.type === "text/csv" || 
+        //       selectedFile.name.endsWith(".csv")
+        //     ) {
+        //       try {
+        //         const text = result as string;
+        //         const dsvRows = d3.csvParse(text); // Use d3.csvParse para processar o CSV
+        //         const data = dsvRows.map((row) => Object.values(row));
+        //         const dadosComoNumeros = converterParaNumeros(data);
+        //         setTableData(dadosComoNumeros);
+        //       } catch (error) {
+        //         console.error("Erro ao processar arquivo CSV:", error);
+        //         setError("Erro ao processar arquivo CSV. Verifique se o arquivo está correto.");
+        //       }
+        //     } else {
+        //         setError("Formato de arquivo não suportado. Por favor, envie um CSV ou Excel.");
+        //     }
+        // };
+
+        // // Escolha o método de leitura correto
+        // if (
+        //   selectedFile.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+        //   selectedFile.name.endsWith(".xlsx")
+        // ) {
+        //   reader.readAsArrayBuffer(selectedFile); // Excel
+        // } else if (
+        //   selectedFile.type === "text/csv" ||
+        //   selectedFile.name.endsWith(".csv")
+        // ) {
+        //   reader.readAsText(selectedFile); // CSV
+        // } else {
+        //   setError("Formato de arquivo não suportado. Por favor, envie um CSV ou Excel.");
+        // }
+        
+
+        // console.log("Arquivo selecionado:", selectedFile);
+        // console.log("Tipo MIME do arquivo:", selectedFile.type);
+        // console.log("Nome do arquivo:", selectedFile.name);
+          }
+    }
+  };
+  
   const handleInputChange = (event: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const converterParaNumeros = (dados: string[][]): number[][] => {
-    return dados.map(linha =>
-      linha.map(valor =>
-        parseFloat(valor.replace(',', '.'))  // Substitui a vírgula por ponto e converte para número
-      )
-    );
+    return dados
+        .filter((linha) => linha.length > 0) // Filtra linhas vazias
+        .map((linha) =>
+            linha
+                .map((valor) => parseFloat(valor.replace(",", ".")))
+                .filter((valor) => !isNaN(valor)) // Remove valores não numéricos
+        );
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -107,18 +146,19 @@ function SentLocalData() {
       setError("Por favor, selecione um arquivo.");
       return;
     }
-  
+    
     try {
       // Enviar os dados brutos para o backend, sem aplicar os filtros no frontend
       const dataToSend = {
-        name: file.name,
-        content: tableData,  // Dados espectrais
+        name: formData.nome_reg, // Use o nome editável
+        content: tableData,
         variety: formData.variedade,
-        datetime: formData.data, // Enviando a data correta
+        datetime: formData.data,
         local: formData.local,
-        filter: formData.filtro, // Filtro selecionado
-        sgParams: formData.sgParams, // Parâmetros do SG
+        filter: formData.filtro,
+        sgParams: formData.sgParams,
       };
+    
       
       console.log("Dados enviados:", dataToSend); // Verificando os dados no console
       
@@ -169,7 +209,7 @@ function SentLocalData() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Anexar Arquivo (CSV ou Excel):</label>
+              <label className="block text-sm font-medium mb-2">Anexar Arquivo (Excel):</label>
               <input
                 type="file"
                 accept=".csv, .xlsx, .xls"
