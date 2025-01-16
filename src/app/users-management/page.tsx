@@ -206,7 +206,7 @@ function ManageUsers() {
                         <div className="flex space-x-4"> {/* Alinhando os botões ao lado */}
                           <button
                             onClick={() =>
-                              handleUpdateUserType(user.id, user.userType === "produtor" ? "admin" : "produtor")
+                              handleUpdateUserType(user.id, user.userType === "produtor" ? "administrador" : "produtor")
                             }
                             className="bg-[#165a16] hover:bg-[#1f7e1f] rounded-sm text-sm px-4 py-2 text-center text-white transition-all duration-300 ease-in-out"
                           >
