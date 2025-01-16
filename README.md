@@ -129,7 +129,7 @@ npx prisma generate
 4. Execute o servidor FastAPI:
 
     ```bash
-    uvicorn main:app --reload
+    uvicorn src.app.api.python.main:app --reload
     ```
 
    Agora sua API estará rodando em `http://localhost:8000`.
