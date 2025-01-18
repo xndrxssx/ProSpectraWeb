@@ -61,12 +61,12 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <SidebarMenuSub>
-                      <SidebarMenuSubItem>
-                        <Link href="/local" className="text-white">Local</Link>
+                    <SidebarMenuSub className="gap-3 py-2 ">
+                      <SidebarMenuSubItem className="hover:bg-white  rounded-md p-1 hover:text-black transition-all duration-350 ease-in-out">
+                        <Link href="/local" className=" text-inherit ">Local</Link>
                       </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <Link href="/device" className="text-white">Dispositivo</Link>
+                      <SidebarMenuSubItem className="hover:bg-white  rounded-md p-1 hover:text-black transition-all duration-350 ease-in-out">
+                        <Link href="/device" className="text-inherit ">Dispositivo</Link>
                       </SidebarMenuSubItem>
                     </SidebarMenuSub>
                   </CollapsibleContent>
@@ -125,15 +125,12 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
                         </SidebarMenuButton>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
-                        <SidebarMenuSub>
-                          <SidebarMenuSubItem>
-                            <Link href="/edit-variety" className="text-white">Editar variedade</Link>
+                        <SidebarMenuSub className="gap-3 py-2" >
+                          <SidebarMenuSubItem className="hover:bg-white  rounded-md p-1 hover:text-black transition-all duration-350 ease-in-out">
+                            <Link href="/edit-variety" className="text-inherit">Editar variedade</Link>
                           </SidebarMenuSubItem>
-                          <SidebarMenuSubItem>
-                            <Link href="/edit-filter" className="text-white">Editar filtro</Link>
-                          </SidebarMenuSubItem>
-                          <SidebarMenuSubItem>
-                            <Link href="/edit-model" className="text-white">Treinar modelo preditivo</Link>
+                          <SidebarMenuSubItem className="hover:bg-white  rounded-md p-1 hover:text-black transition-all duration-350 ease-in-out">
+                            <Link href="/edit-model" className="text-inherit">Treinar modelo preditivo</Link>
                           </SidebarMenuSubItem>
                         </SidebarMenuSub>
                       </CollapsibleContent>
