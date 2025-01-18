@@ -47,81 +47,71 @@ function SentLocalData() {
     const selectedFile = event.target.files?.[0] || null;
     setFile(selectedFile);
     setError("");
-
+    console.log("Início do processamento do arquivo");
+  
     if (selectedFile) {
-        const reader = new FileReader();
-
-        reader.onload = async (e) => {
-            const result = e.target?.result;
-
-            // Verifique se o arquivo é do tipo Excel (XLSX)
-            if (
-                selectedFile.type.includes("excel") || 
-                selectedFile.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            ) {
-              try {
-                const binaryStr = result as ArrayBuffer;
-                const workbook = new ExcelJS.Workbook();
-                await workbook.xlsx.load(binaryStr); // Tenta carregar o arquivo Excel
-                const worksheet = workbook.worksheets[0];
-                const data: string[][] = [];
-              
-                worksheet.eachRow((row) => {
-                  const rowData: string[] = [];
-                  row.eachCell({ includeEmpty: true }, (cell) => {
-                    rowData.push(cell.text); // Certifique-se de que está acessando o texto
-                  });
-                  data.push(rowData);
-                });
-              
-                const dadosComoNumeros = converterParaNumeros(data);
-                setTableData(dadosComoNumeros);
-              } catch (error) {
-                console.error("Erro ao processar arquivo Excel:", error);
-                setError("Erro ao processar arquivo Excel. Verifique se o arquivo está correto.");
-              }
+      console.log("Reconheceu anexo");
+      const reader = new FileReader();
+  
+      reader.onload = async (e) => {
+        console.log("Arquivo carregado", e.target?.result);  // Verifique se o arquivo foi carregado
+        const result = e.target?.result;
+        console.log("Arquivo selecionado:", selectedFile.name);
+        if (!result) {
+          console.error("Erro: o arquivo não foi carregado corretamente.");
+          setError("Erro ao carregar o arquivo.");
+          return;
+        }
+        const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
+        if (fileExtension !== 'xlsx' && fileExtension !== 'xls') {
+          setError("Por favor, selecione um arquivo Excel válido.");
+          return;
+      }
+        // Verifique o tipo de arquivo
+        console.log("Tipo de arquivo:", selectedFile.type);
+        if (
+          selectedFile.type.includes("excel") || 
+          selectedFile.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ) {
+          try {
+            const binaryStr = e.target?.result as ArrayBuffer;
+            const workbook = new ExcelJS.Workbook();
+            await workbook.xlsx.load(binaryStr);
+            console.log("Workbook carregado com sucesso:", workbook);
+            console.log("Número de planilhas:", workbook.worksheets.length);
+            if (workbook.worksheets.length === 0) {
+              console.error("Não há planilhas no arquivo.");
+              setError("O arquivo não contém planilhas.");
+              return;
             }
-        //     // Verifique se o arquivo é CSV
-        //     else if (
-        //       selectedFile.type.includes("csv") || 
-        //       selectedFile.type === "text/csv" || 
-        //       selectedFile.name.endsWith(".csv")
-        //     ) {
-        //       try {
-        //         const text = result as string;
-        //         const dsvRows = d3.csvParse(text); // Use d3.csvParse para processar o CSV
-        //         const data = dsvRows.map((row) => Object.values(row));
-        //         const dadosComoNumeros = converterParaNumeros(data);
-        //         setTableData(dadosComoNumeros);
-        //       } catch (error) {
-        //         console.error("Erro ao processar arquivo CSV:", error);
-        //         setError("Erro ao processar arquivo CSV. Verifique se o arquivo está correto.");
-        //       }
-        //     } else {
-        //         setError("Formato de arquivo não suportado. Por favor, envie um CSV ou Excel.");
-        //     }
-        // };
-
-        // // Escolha o método de leitura correto
-        // if (
-        //   selectedFile.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-        //   selectedFile.name.endsWith(".xlsx")
-        // ) {
-        //   reader.readAsArrayBuffer(selectedFile); // Excel
-        // } else if (
-        //   selectedFile.type === "text/csv" ||
-        //   selectedFile.name.endsWith(".csv")
-        // ) {
-        //   reader.readAsText(selectedFile); // CSV
-        // } else {
-        //   setError("Formato de arquivo não suportado. Por favor, envie um CSV ou Excel.");
-        // }
-        
-
-        // console.log("Arquivo selecionado:", selectedFile);
-        // console.log("Tipo MIME do arquivo:", selectedFile.type);
-        // console.log("Nome do arquivo:", selectedFile.name);
+  
+            const worksheet = workbook.worksheets[0];
+            console.log("Planilha carregada:", worksheet);
+  
+            const data: string[][] = [];
+            worksheet.eachRow((row, rowNumber) => {
+              const rowData: string[] = [];
+              row.eachCell({ includeEmpty: true }, (cell) => {
+                  const value = cell.value ? cell.value.toString() : "";
+                  rowData.push(value);
+              });
+              console.log(`Linha ${rowNumber}:`, rowData);
+              data.push(rowData);
+          });          
+  
+            const dadosComoNumeros = converterParaNumeros(data);
+            setTableData(dadosComoNumeros);
+          } catch (error) {
+            console.error("Erro ao carregar o arquivo Excel:", error);
+            setError("Não foi possível processar o arquivo. Verifique o formato.");
+            return;
           }
+        } else {
+          setError("O arquivo selecionado não é um arquivo Excel válido.");
+        }
+      };
+  
+      reader.readAsArrayBuffer(selectedFile); // Lê o arquivo como ArrayBuffer
     }
   };
   
@@ -148,6 +138,7 @@ function SentLocalData() {
     }
     
     try {
+      console.log("Tabela de Dados:", tableData);
       // Enviar os dados brutos para o backend, sem aplicar os filtros no frontend
       const dataToSend = {
         name: formData.nome_reg, // Use o nome editável
@@ -212,7 +203,7 @@ function SentLocalData() {
               <label className="block text-sm font-medium mb-2">Anexar Arquivo (Excel):</label>
               <input
                 type="file"
-                accept=".csv, .xlsx, .xls"
+                accept=".xlsx, .xls"
                 onChange={handleFileChange}
                 className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
               />

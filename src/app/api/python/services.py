@@ -19,17 +19,22 @@ def create_spectra(data):
     }
 
 def apply_msc(data):
-    mean_spectrum = data.mean(axis=0)
-    corrected_spectra = []
+    if not isinstance(data, np.ndarray):
+        raise ValueError("Os dados de entrada devem ser um numpy.ndarray.")
     
+    # Calcula o espectro médio
+    mean_spectrum = np.mean(data, axis=0)
+    
+    # Aloca a matriz para os dados corrigidos
+    corrected_data = np.zeros_like(data)
+    
+    # Itera sobre as linhas do dado
     for i in range(data.shape[0]):
-        spectrum = data.iloc[i, :]
-        slope, intercept = np.polyfit(mean_spectrum, spectrum, 1)
-        corrected_spectrum = (spectrum - intercept) / slope
-        corrected_spectra.append(corrected_spectrum)
+        spectrum = data[i, :]  # Acessa diretamente as linhas como numpy array
+        fit = np.polyfit(mean_spectrum, spectrum, 1, full=False)
+        corrected_data[i, :] = (spectrum - fit[1]) / fit[0]
     
-    corrected_df = pd.DataFrame(corrected_spectra, columns=data.columns)
-    return corrected_df
+    return corrected_data
 
 def apply_snv(data):
     mean = np.mean(data, axis=1, keepdims=True)
