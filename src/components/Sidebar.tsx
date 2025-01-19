@@ -132,6 +132,12 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
                           <SidebarMenuSubItem className="hover:bg-white  rounded-md p-1 hover:text-black transition-all duration-350 ease-in-out">
                             <Link href="/edit-model" className="text-inherit">Treinar modelo preditivo</Link>
                           </SidebarMenuSubItem>
+                          <SidebarMenuSubItem className="hover:bg-white  rounded-md p-1 hover:text-black transition-all duration-350 ease-in-out">
+                            <Link href="/upload-features" className="text-inherit">Dados para testes</Link>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem className="hover:bg-white  rounded-md p-1 hover:text-black transition-all duration-350 ease-in-out">
+                            <Link href="/upload-targets" className="text-inherit">Alvos para testes</Link>
+                          </SidebarMenuSubItem>
                         </SidebarMenuSub>
                       </CollapsibleContent>
                     </SidebarMenuItem>

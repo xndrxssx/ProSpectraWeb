@@ -67,6 +67,8 @@ PORT=3000
 
 # Ambiente (desenvolvimento, produção, etc.)
 NODE_ENV=development
+
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 ```
 
 ### Configuração do Prisma

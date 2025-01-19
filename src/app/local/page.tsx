@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import * as d3 from "d3"; // Biblioteca para manipular CSVs
 import ExcelJS from "exceljs"; // Biblioteca para manipular arquivos Excel
 import CustomSidebar from "@/components/Sidebar";
 import withAuth from "@/components/withAuth";

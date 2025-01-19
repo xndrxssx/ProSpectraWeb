@@ -44,3 +44,31 @@ model Spectra {
   graph     String?  @db.Text
   createdAt    DateTime @default(now())
 }
+
+model PredictiveModel {
+  id             Int      @id @default(autoincrement())
+  attribute      String   // Atributo da qualidade (Y)
+  X_features     String   // Nome das features usadas (JSON string ou array serializado)
+  hyperparameters Json    // Hiperparâmetros (JSON formatado)
+  metrics         Json    // Métricas do modelo treinado (JSON formatado)
+  graph           Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SpectrumData {
+  id          Int       @id @default(autoincrement())
+  dataset   String
+  wavelengths Json      @default("[]")
+  X           Json      @default("[]") // Valor padrão de lista vazia
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model TargetData {
+  id          Int       @id @default(autoincrement())
+  attribute   String
+  y           Json      @default("[]") // Valor padrão de lista vazia
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
