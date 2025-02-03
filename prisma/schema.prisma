@@ -47,10 +47,11 @@ model Spectra {
 
 model PredictiveModel {
   id             Int      @id @default(autoincrement())
+  model_name     String
   attribute      String   // Atributo da qualidade (Y)
-  X_features     String   // Nome das features usadas (JSON string ou array serializado)
   hyperparameters Json    // Hiperparâmetros (JSON formatado)
-  metrics         Json    // Métricas do modelo treinado (JSON formatado)
+  metrics         Json    // Métricas do modelo treinado 
+  model           String?           
   graph           Json
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

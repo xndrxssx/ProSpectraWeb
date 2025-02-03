@@ -99,6 +99,7 @@ Isso irá:
 
 - Criar as tabelas necessárias no banco de dados.
 - Rastrear as migrações para manter o esquema sincronizado.
+
 5. Gere o Prisma Client
 Para usar o Prisma Client no seu código, execute:
 

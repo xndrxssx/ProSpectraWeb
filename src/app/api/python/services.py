@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 from scipy.signal import savgol_filter
 import base64
 from io import BytesIO
@@ -54,7 +53,7 @@ def plot_filtered_data(filtered_data, wl):
     plt.plot(wl, filtered_data.T)
     plt.xlabel("Comprimento de onda (nm)", size=14)
     plt.ylabel("Absorbância", size=14)
-    plt.title("Correção SNV para o FieldSpec", size=18)
+    plt.title("Filtro para o FieldSpec", size=18)
     plt.axhline(y=0, color='k', linewidth=1.5)
     plt.grid(True)
     
@@ -96,12 +95,9 @@ def save_regression_comparison_plot(y_train, y_pred_train, y_pred_cv, file_path)
              transform=plt.gca().transAxes, fontsize=12, verticalalignment='top', horizontalalignment='left')
 
     # Salvar gráfico como arquivo
-    img_buf = BytesIO()
-    plt.savefig(img_buf, format='png')
-    img_buf.seek(0)
-    img_str = base64.b64encode(img_buf.read()).decode('utf-8')
+    plt.savefig(str(file_path), format='png')
+    plt.close()
 
-    return img_str
     
 def plot_test_predictions(y_true_test, y_pred_test, file_path):
     # Calcular slope, offset, R² e RMSE
@@ -122,9 +118,5 @@ def plot_test_predictions(y_true_test, y_pred_test, file_path):
     plt.legend()
     plt.text(0.05, 0.95, f'Slope: {slope:.2f}\nOffset: {offset:.2f}\nR²: {r2:.2f}\nRMSE: {rmse:.2f}', 
              transform=plt.gca().transAxes, verticalalignment='top')
-    img_buf = BytesIO()
-    plt.savefig(img_buf, format='png')
-    img_buf.seek(0)
-    img_str = base64.b64encode(img_buf.read()).decode('utf-8')
-
-    return img_str
+    plt.savefig(str(file_path), format='png')
+    plt.close()
