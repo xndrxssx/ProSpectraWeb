@@ -1,9 +1,9 @@
 from fastapi.responses import JSONResponse
 from .services import apply_msc, apply_snv, apply_sg, plot_filtered_data, calculate_metrics, save_regression_comparison_plot, plot_test_predictions
-from .models import SpectraData, ModelData, ModelResponse, SpectrumResponse, SpectrumData, TargetData, TargetResponse, XResponse, YResponse
+from .models import SpectraData, ModelData, ModelResponse, SpectrumResponse, SpectrumData, TargetData, TargetResponse, XResponse, YResponse, ApplyModelRequest, SavePredictionRequest, PredictionResponse
 import pickle
 import json
-import os
+import logging
 from datetime import datetime, timezone
 import numpy as np
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,9 +38,13 @@ MODELS_DIR.mkdir(parents=True, exist_ok=True)
 IMAGES_DIR = Path("static/images")
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
+# Configurando o logger
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins="http://localhost:3000",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -171,6 +175,8 @@ async def train_model_rfr(data: ModelData):
         y_train = np.array(data.y_train)
         X_test = np.array(data.X_test)
         y_test = np.array(data.y_test)
+        logger.info(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
+        logger.info(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
 
         # Criar o pipeline
         pipeline = make_pipeline(
@@ -335,3 +341,130 @@ async def get_target_by_id(id: int):
     except Exception as e:
         print(f"Erro ao buscar alvo: {e}")
         raise HTTPException(status_code=400, detail=f"Error: {str(e)}")
+    
+@app.get("/api/list-models/")
+async def list_models():
+    try:
+        model_files = [f.name for f in MODELS_DIR.iterdir() if f.is_file()]
+        return {"models": model_files}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao listar modelos: {str(e)}")
+
+@app.post("/api/apply-model/")
+async def apply_model(request: ApplyModelRequest):
+    try:
+        # Carregar o modelo
+        model_path = MODELS_DIR / request.model_name
+        if not model_path.exists():
+            raise HTTPException(status_code=404, detail="Modelo não encontrado")
+
+        with open(model_path, "rb") as model_file:
+            model = pickle.load(model_file)
+
+        # Buscar os dados espectrais no banco
+        print(f"Received spectral_data_id: {request.spectral_data_id}")  # Log do ID
+        spectral_data = await prisma.spectra.find_unique(where={"id": request.spectral_data_id})  # Alterar para 'spectra'
+        if not spectral_data:
+            raise HTTPException(status_code=404, detail="Dados espectrais não encontrados.")
+
+        # Converter os dados para array NumPy
+        if isinstance(spectral_data.content, str):
+            X = np.array(json.loads(spectral_data.content))  # Se for uma string JSON
+        elif isinstance(spectral_data.content, (list, np.ndarray)):
+            X = np.array(spectral_data.content)  # Se for uma lista ou array
+        else:
+            raise HTTPException(status_code=400, detail="Formato inválido para spectral_data.content")
+
+        # Fazer a predição
+        prediction = model.predict(X)  # Pode ser um array ou um valor único
+
+        # Se for um array de um único valor, converter para float
+        if isinstance(prediction, (list, np.ndarray)) and len(prediction) == 1:
+            prediction = float(prediction[0])
+
+        return {"prediction": prediction}  # Retorna apenas um float
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao aplicar o modelo: {str(e)}")
+
+@app.post("/api/save-prediction/")
+async def save_prediction(request: SavePredictionRequest):
+    print(f"Recebido: {request}")
+
+    # Verificar se spectral_data_id é válido
+    if not request.spectral_data_id:
+        raise HTTPException(status_code=400, detail="spectral_data_id é obrigatório.")
+
+    # Buscar os dados espectrais no banco
+    spectral_data = await prisma.spectra.find_unique(where={"id": request.spectral_data_id})
+    if not spectral_data:
+        raise HTTPException(status_code=404, detail="Dados espectrais não encontrados.")
+
+    # Salvar a predição no banco
+    saved_prediction = await prisma.predictions.create(
+        data={
+            "name": request.name,
+            "model_name": request.model_name,
+            "spectral_data_id": request.spectral_data_id,
+            "prediction": request.prediction,  # Corrigido para Float diretamente
+            "createdAt": datetime.now(timezone.utc),
+        }
+    )
+
+    return {"message": "Predição salva com sucesso!", "id": saved_prediction.id}
+
+@app.get("/api/get-spectral-data/")
+async def list_spectral_data():
+    try:
+        spectral_data_list = await prisma.spectra.find_many()
+        return [
+            {
+                "id": data.id,
+                "name": data.name,
+                "variety": data.variety,
+                "datetime": data.datetime.isoformat(),
+                "local": data.local,
+                "filter": data.filter,
+                "graph": data.graph,
+            }
+            for data in spectral_data_list
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao listar dados espectrais: {str(e)}")
+
+@app.get("/api/get-spectral-data/{id}")
+async def get_spectral_data(id: int):
+    try:
+        spectral_data = await prisma.spectra.find_unique(where={"id": id})
+        if not spectral_data:
+            raise HTTPException(status_code=404, detail="Dado espectral não encontrado")
+        return {
+            "id": spectral_data.id,
+            "name": spectral_data.name,
+            "variety": spectral_data.variety,
+            "content": spectral_data.content,
+            "datetime": spectral_data.datetime.isoformat(),
+            "local": spectral_data.local,
+            "filter": spectral_data.filter,
+            "graph": spectral_data.graph,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar dados espectrais: {str(e)}")
+    
+# Rota corrigida para obter predições
+@app.get("/api/predictions/", response_model=list[PredictionResponse])
+async def list_predictions():
+    try:
+        predictions = await prisma.predictions.find_many()
+        return [
+            {
+                "id": data.id,
+                "name": data.name,  # Campo retornado pelo banco de dados
+                "model_name": data.model_name,
+                "spectral_data_id": data.spectral_data_id,
+                "prediction": data.prediction,
+                "createdAt": data.createdAt,
+            }
+            for data in predictions
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao listar dados: {str(e)}")

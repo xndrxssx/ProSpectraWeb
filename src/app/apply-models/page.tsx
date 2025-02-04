@@ -1,68 +1,163 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CustomSidebar from "@/components/Sidebar";
 import withAuth from "@/components/withAuth";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
-function ApplyModels (){
+interface SpectralData {
+  id: string;
+  dataset: string;
+  name: string;
+  variety: string;
+  filter: string;
+  graph: string;
+}
+
+interface SelectedSpectralData {
+  id: string;
+  name: string;
+  variety: string;
+  filter: string;
+  graph: string;
+}
+
+function ApplyModels() {
   const router = useRouter();
   const [filters, setFilters] = useState({
     model: "",
     variety: "",
     date: "",
     location: "",
+    spectralDataId: "",
+    predictionName: "",
   });
   const [spectralData, setSpectralData] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [models, setModels] = useState<string[]>([]); 
+  const [spectralDataList, setSpectralDataList] = useState<SpectralData[]>([]);
+  const [selectedSpectralData, setSelectedSpectralData] = useState<SelectedSpectralData | null>(null);
 
-  // Função para lidar com mudanças nos filtros
-  const handleFilterChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  useEffect(() => {
+    const fetchModels = async () => {
+      try {
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/list-models/`;
+        console.log("Fetching models from:", url); // Log para depuração
+        const response = await fetch(url);
+        const data = await response.json();
+        setModels(data.models || []);
+      } catch (error) {
+        console.error("Erro ao carregar modelos:", error);
+        toast.error("Erro ao carregar modelos.");
+      }
+    };
+  
+    fetchModels();
+  }, []);
+  
+  useEffect(() => {
+    const fetchSpectralData = async () => {
+      try {
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/get-spectral-data/`;
+        console.log("Fetching spectral data from:", url); // Log para depuração
+        const response = await fetch(url);
+        const data = await response.json();
+        setSpectralDataList(data || []);
+      } catch (error) {
+        console.error("Erro ao carregar dados espectrais:", error);
+        toast.error("Erro ao carregar dados espectrais.");
+      }
+    };
+  
+    fetchSpectralData();
+  }, []);
+
+  const handleFilterChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFilters((prevFilters) => ({
       ...prevFilters,
       [name]: value,
     }));
-  };
 
-  // Função para lidar com upload de dados espectrais
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setSpectralData(e.target.files[0]);
+    if (name === "spectralDataId" && value) {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/get-spectral-data/${value}`);
+        const data = await response.json();
+        setSelectedSpectralData(data);
+      } catch (error) {
+        console.error("Erro ao buscar detalhes do dado espectral:", error);
+        toast.error("Erro ao buscar detalhes do dado espectral.");
+        setSelectedSpectralData(null);
+      }
     }
   };
 
-  // Função para submissão do formulário
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!filters.model || !spectralData) {
-      setError("Selecione um modelo e forneça os dados espectrais.");
+    if (!filters.model || !filters.spectralDataId) {
+      setError("Selecione um modelo e um dado espectral.");
+      toast.error("Selecione um modelo e um dado espectral.");
       return;
     }
 
-    // Lógica para processar os dados utilizando o modelo e os filtros
-    console.log("Processando dados com os filtros:", filters, spectralData);
-    setError(null);
+    try {
+      const spectralDataId = parseInt(filters.spectralDataId, 10);  // Converte para inteiro
+      if (isNaN(spectralDataId)) {
+        throw new Error("ID do dado espectral inválido.");
+      }
 
-    // Navegar para a página de resultados
-    router.push("/results");
+      const applyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/apply-model/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model_name: filters.model,
+          spectral_data_id: spectralDataId,
+        }),
+      });      
+    
+      const applyData = await applyResponse.json();
+
+      const saveResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/save-prediction/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model_name: filters.model,
+          name: filters.predictionName,
+          spectral_data_id: parseInt(filters.spectralDataId, 10),  // Converte para inteiro
+          prediction: parseFloat(applyData.prediction),
+        }),
+      });   
+      
+      console.log("Payload: ", JSON.stringify({
+        name: filters.predictionName,
+        model_name: filters.model,
+        spectral_data_id: parseInt(filters.spectralDataId, 10),
+        prediction: applyData.prediction,
+      }))
+
+      toast.success("Predição salva com sucesso!");
+    } catch (error) {
+      setError("Erro ao aplicar o modelo ou salvar a predição.");
+      toast.error("Erro ao aplicar o modelo ou salvar a predição.");
+      console.error(error);
+    }
   };
 
   return (
     <div className="min-h-screen w-full flex bg-[#eaeaea] text-[#001E01]">
-      <CustomSidebar /> {/* Adicionando a sidebar ao layout */}
-
+      <CustomSidebar />
+      <ToastContainer /> {/* Adiciona o ToastContainer para exibir notificações */}
       <main className="flex-1 flex items-center justify-center">
         <div className="bg-white/10 max-w-lg w-full backdrop-blur-sm rounded-lg p-8 shadow-lg">
-          <h1 className="text-2xl font-bold mb-4 text-center">
-            Aplicar Modelos e Filtros
-          </h1>
-
+          <h1 className="text-2xl font-bold mb-4 text-center">Aplicar Modelo</h1>
           {error && <div className="text-red-500 text-sm">{error}</div>}
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="model" className="block text-sm font-medium mb-2">
@@ -76,77 +171,62 @@ function ApplyModels (){
                 className="w-full p-2 border border-gray-300 rounded-lg"
               >
                 <option value="">Selecione um modelo</option>
-                <option value="modelo1">Modelo 1</option>
-                <option value="modelo2">Modelo 2</option>
-                <option value="modelo3">Modelo 3</option>
+                {models.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
               </select>
             </div>
-
             <div>
-              <label
-                htmlFor="variety"
-                className="block text-sm font-medium mb-2"
-              >
-                Variedade:
+              <label htmlFor="predictionName" className="block text-sm font-medium mb-2">
+                Nome da Predição:
               </label>
               <input
                 type="text"
-                id="variety"
-                name="variety"
-                value={filters.variety}
+                id="predictionName"
+                name="predictionName"
+                value={filters.predictionName}
                 onChange={handleFilterChange}
                 className="w-full p-2 border border-gray-300 rounded-lg"
               />
             </div>
-
             <div>
-              <label htmlFor="date" className="block text-sm font-medium mb-2">
-                Data:
-              </label>
-              <input
-                type="date"
-                id="date"
-                name="date"
-                value={filters.date}
-                onChange={handleFilterChange}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="location"
-                className="block text-sm font-medium mb-2"
-              >
-                Local:
-              </label>
-              <input
-                type="text"
-                id="location"
-                name="location"
-                value={filters.location}
-                onChange={handleFilterChange}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="spectralData"
-                className="block text-sm font-medium mb-2"
-              >
+              <label htmlFor="spectralDataId" className="block text-sm font-medium mb-2">
                 Dados Espectrais:
               </label>
-              <input
-                type="file"
-                id="spectralData"
-                name="spectralData"
-                accept=".csv, .xlsx"
-                onChange={handleFileUpload}
+              <select
+                id="spectralDataId"
+                name="spectralDataId"
+                value={filters.spectralDataId}
+                onChange={handleFilterChange}
                 className="w-full p-2 border border-gray-300 rounded-lg"
-              />
+              >
+                <option value="">Selecione os dados espectrais</option>
+                {Array.isArray(spectralDataList) &&
+                  spectralDataList.map((data: SpectralData) => (
+                    <option key={data.id} value={data.id}>
+                      {`${data.name} - ${data.variety} - ${data.filter}`}
+                    </option>
+                  ))}
+              </select>
+              {selectedSpectralData && (
+                <div className="mt-4 p-4 border border-gray-300 rounded-lg">
+                  <h3 className="font-bold">Detalhes do Dado Espectral:</h3>
+                  <p><strong>Nome:</strong> {selectedSpectralData.name}</p>
+                  <p><strong>Variedade:</strong> {selectedSpectralData.variety}</p>
+                  <p><strong>Filtro:</strong> {selectedSpectralData.filter}</p>
+                  <div className="mt-2">
+                    <strong>Gráfico:</strong>
+                    <img
+                      src={`data:image/png;base64,${selectedSpectralData.graph}`}
+                      alt="Gráfico do dado espectral"
+                      className="mt-2"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
-
             <button
               type="submit"
               className="mt-6 w-full bg-[#165a16] text-white py-2 px-4 rounded-lg hover:bg-[#1f7e1f] transition-all duration-400 ease-in-out"
@@ -158,6 +238,6 @@ function ApplyModels (){
       </main>
     </div>
   );
-};
+}
 
 export default withAuth(ApplyModels);

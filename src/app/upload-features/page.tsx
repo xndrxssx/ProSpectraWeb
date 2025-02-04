@@ -15,51 +15,65 @@ function SaveWavelengths() {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-
+  
       reader.onload = async () => {
         const buffer = reader.result as ArrayBuffer;
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(buffer);
-
+  
         const worksheet = workbook.getWorksheet(1);
         if (!worksheet) {
           setErro("Planilha não encontrada.");
           return;
         }
-
+  
         // Pegando a primeira linha como comprimento de onda
         const firstRow = worksheet.getRow(1);
         if (firstRow && Array.isArray(firstRow.values)) {
-          // Primeira linha para wavelengths
-          const wavelengthsData = firstRow.values.slice(1); // Pega os valores sem a coluna de rótulo
-          if (wavelengthsData.every(val => typeof val === 'number')) {
-            setWavelengths(wavelengthsData as number[]);
+          // Converter os valores da primeira linha para números
+          const wavelengthsData = firstRow.values
+            .slice(1) // Ignora o primeiro valor (rótulo ou índice)
+            .map(val => Number(val)) // Converte para número
+            .filter(val => !isNaN(val)); // Filtra valores inválidos
+  
+          if (wavelengthsData.length > 0) {
+            setWavelengths(wavelengthsData);
             setErro(null); // Limpa qualquer erro anterior
           } else {
             setErro("Valores da primeira linha são inválidos.");
             return;
           }
-
+  
           // Pegando as linhas restantes para X DATA
           const xDataArray: number[][] = [];
           worksheet.eachRow((row, rowNumber) => {
             if (rowNumber > 1) { // Ignorando a primeira linha
-              const rowValues = row.values as { [key: string]: any }; // Garantir que row.values seja tratado como um objeto
-              const rowData = Object.values(rowValues).slice(1); // Pega os valores e ignora o rótulo da primeira coluna
-              if (rowData.every(val => typeof val === 'number')) {
-                xDataArray.push(rowData as number[]);
+              const rowValues = row.values as any[]; // Garantir que row.values seja tratado como um array
+  
+              // Converter os valores da linha para números
+              const rowData = rowValues
+                .slice(1) // Ignora o primeiro valor (rótulo ou índice)
+                .map(val => Number(val)) // Converte para número
+                .filter(val => !isNaN(val)); // Filtra valores inválidos
+  
+              if (rowData.length > 0) {
+                xDataArray.push(rowData);
+              } else {
+                console.warn(`Linha ${rowNumber} tem dados inválidos, ignorando...`);
               }
             }
           });
+  
           setXData(xDataArray);
         } else {
           setErro("Primeira linha não encontrada ou inválida.");
         }
       };
-
+  
       reader.readAsArrayBuffer(file);
     }
   };
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

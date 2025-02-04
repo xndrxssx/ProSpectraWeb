@@ -289,7 +289,9 @@ function EditModel() {
       console.log("Payload Enviado:", JSON.stringify({
         model_name: selectedModelName, // Enviando o nome do modelo
         attribute: attribute,
+        X_train: XTrain,
         y_train: yTrain,
+        X_test: XTest,
         y_test: yTest,
         hyperparameters: parsedHyperparameters,
       }, null, 2));
