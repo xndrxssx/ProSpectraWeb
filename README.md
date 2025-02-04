@@ -34,6 +34,34 @@ Aqui estão algumas capturas de tela da interface do ProSpectra Web:
 
 ![prospectra login](https://github.com/user-attachments/assets/97f0f17e-387c-421d-9eb1-2b1a2c34f3af)
 
+### Enviar espectro para predição
+
+![envio de dados locais](https://github.com/user-attachments/assets/b350c147-f2ed-404b-a864-0a362f211311)
+
+### Realizar predições com os espectros
+
+![aplicar modelo](https://github.com/user-attachments/assets/0725db61-12b6-446c-ab52-65e51963d05c)
+
+### Treinar modelo
+
+![TREINAR](https://github.com/user-attachments/assets/e40896f1-9255-4162-9056-7ac94c2527dd)
+
+### Salvar dados espectrais para treinamento
+
+![WAVELENGT](https://github.com/user-attachments/assets/be6ce56c-1cc3-4429-9e0f-0b0853c48ab7)
+
+### Gerenciar usuários
+
+![gerenciar](https://github.com/user-attachments/assets/4f581f34-5a4a-40d1-b2b5-b85964d0e0d3)
+
+### Histórico
+
+![historico](https://github.com/user-attachments/assets/aaec42b0-ecc9-42be-8f11-cf1cd5900f0a)
+
+### Registrar informações sobre as uvas
+
+![VARIEDADE](https://github.com/user-attachments/assets/210ae82d-8537-47be-8584-35142987774f)
+
 ## Como Começar
 
 ### Instalação
