@@ -1,7 +1,10 @@
 from fastapi.responses import JSONResponse
-from .services import apply_msc, apply_snv, apply_sg, plot_filtered_data, calculate_metrics, save_regression_comparison_plot, plot_test_predictions
+from .services import apply_msc, apply_snv, apply_sg, plot_filtered_data, calculate_metrics, save_regression_comparison_plot, plot_test_predictions, generate_plot
 from .models import SpectraData, ModelData, ModelResponse, SpectrumResponse, SpectrumData, TargetData, TargetResponse, XResponse, YResponse, ApplyModelRequest, SavePredictionRequest, PredictionResponse
+from sklearn.svm import SVR
+from collections import Counter
 import pickle
+import time
 import json
 import logging
 from datetime import datetime, timezone
@@ -44,7 +47,7 @@ logger = logging.getLogger(__name__)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins="http://localhost:3000",
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -91,51 +94,64 @@ async def save_data(data: SpectraData):
 
     return {"message": "Dados e gráfico salvos com sucesso!", "id": saved_spectra.id}
 
-@app.post("/api/save-wavelengths/", response_model=SpectrumResponse)
+@app.post("/api/save-wavelengths/")
 async def save_wavelengths(data: SpectrumData):
-    # Verificar e ajustar os tipos antes de salvar
-    wavelengths = (
-        json.dumps(data.wavelengths)
-        if isinstance(data.wavelengths, list)
-        else data.wavelengths
-    )
-    X = (
-        json.dumps(data.X)
-        if isinstance(data.X, list)
-        else data.X
-    )
-
     try:
-        # Salva os dados no banco
+        # Convertendo os dados para numpy
+        X = np.array(data.X)
+
+        # Aplicando filtro se houver um selecionado
+        if data.filter == "MSC":
+            filtered_data = apply_msc(X)
+        elif data.filter == "SNV":
+            filtered_data = apply_snv(X)
+        elif data.filter == "SG":
+            filtered_data = apply_sg(X, data.sgParams)
+        else:
+            filtered_data = X
+
+        # Gerando imagem do gráfico processado
+        image_str = plot_filtered_data(filtered_data, data.wavelengths)  # Imagem em Base64
+
+        # Depuração: verificar o tipo antes de chamar json.loads()
+        print("Tipo de data.wavelengths:", type(data.wavelengths))
+
+        # Garantindo que os dados sejam serializáveis
+        if isinstance(data.wavelengths, str):
+            wavelengths_data = json.loads(data.wavelengths)
+        else:
+            wavelengths_data = data.wavelengths  # Já é uma lista ou dicionário, não precisa converter
+
+        X_data = filtered_data.tolist()  # Convertendo NumPy para lista
+
+        # Salvando no banco com imagem em Base64
         db_entry = await prisma.spectrumdata.create(
             data={
                 "dataset": data.dataset,
-                "wavelengths": wavelengths,
-                "X": X,
+                "wavelengths": json.dumps(wavelengths_data),  # Sempre armazenamos como string JSON
+                "X": json.dumps(X_data),  # Sempre armazenamos como string JSON
+                "createdAt": datetime.now(),
+                "updatedAt": datetime.now(),
+                "image": json.dumps({"data": image_str}),  # Passando a imagem como string Base64
             }
         )
-        # print("Dados salvos no banco com sucesso:", db_entry)
 
-        # Formatar a resposta corretamente
-        response = SpectrumResponse(
-            id=db_entry.id,
-            dataset=db_entry.dataset,
-            wavelengths=json.loads(db_entry.wavelengths)
-            if isinstance(db_entry.wavelengths, str)
-            else db_entry.wavelengths,
-            X=json.loads(db_entry.X)
-            if isinstance(db_entry.X, str)
-            else db_entry.X,
-            createdAt=db_entry.createdAt,
-            updatedAt=db_entry.updatedAt,
-        )
-        # print("Resposta formatada com sucesso:", response)
-        return response
+        # Depuração: verificar o tipo antes de chamar json.loads()
+        print("Tipo de db_entry.wavelengths:", type(db_entry.wavelengths))
+        print("Tipo de db_entry.X:", type(db_entry.X))
+
+        # Garantindo que `json.loads()` só seja chamado para strings
+        # wavelengths_result = db_entry.wavelengths  # Já é uma lista, não precisa de json.loads()
+        # X_result = db_entry.X  # Já é uma lista, não precisa de json.loads()
+
+        # img = db_entry.image if isinstance(db_entry.image, str) else db_entry.image["data"]
+        # print("Imagem gerada:", image_str[:30] + "...")  # Log para verificar
+
+        return {"message": "Dados e gráfico salvos com sucesso!", "id": db_entry.id}
 
     except Exception as e:
-        print(f"Erro ao salvar no banco: {e}")
-        raise HTTPException(status_code=400, detail=f"Error: {str(e)}")
-    
+        raise HTTPException(status_code=400, detail=f"Erro: {str(e)}")
+
 @app.post("/api/save-targets/", response_model=TargetResponse)
 async def save_targets(data: TargetData):
     # Garantir que 'y' seja sempre uma lista antes de serializar
@@ -167,9 +183,10 @@ async def save_targets(data: TargetData):
         print(f"Erro ao salvar no banco: {e}")
         raise HTTPException(status_code=400, detail=f"Error: {str(e)}")
 
-@app.post("/api/train-model/", response_model=ModelResponse)
+@app.post("/api/train-model-rfr/", response_model=ModelResponse)
 async def train_model_rfr(data: ModelData):
     try:
+        start_time = time.time()
         # Carregar ou gerar os dados de treino e teste
         X_train = np.array(data.X_train)
         y_train = np.array(data.y_train)
@@ -209,11 +226,15 @@ async def train_model_rfr(data: ModelData):
             "test_predictions_plot": str(image_path_2)
         }
         
+        execution_time = time.time() - start_time  # Calcule o tempo de execução
+        
         metrics = {
             "train": metrics_train,
             "cv": metrics_cv,
-            "test": metrics_pred
+            "test": metrics_pred,
+            "time": {"execution_time": execution_time}  # Correto: mantém a estrutura Dict[str, float]
         }
+
         
         # Salvar o modelo em um arquivo
         model_filename = f"{data.attribute}_{data.model_name}_model.pkl"
@@ -226,6 +247,7 @@ async def train_model_rfr(data: ModelData):
             data={
                 "model_name": data.model_name,
                 "attribute": data.attribute,
+                "variety_id": data.variety_id,
                 "metrics": json.dumps(metrics) if not isinstance(metrics, str) else metrics,
                 "graph": json.dumps(images_paths) if not isinstance(images_paths, str) else images_paths,
                 "hyperparameters": json.dumps(data.hyperparameters) if not isinstance(data.hyperparameters, str) else data.hyperparameters,
@@ -237,6 +259,7 @@ async def train_model_rfr(data: ModelData):
             id=db_entry.id,
             model_name=db_entry.model_name,
             attribute=db_entry.attribute,
+            variety_id=db_entry.variety_id,
             hyperparameters=json.loads(db_entry.hyperparameters) if isinstance(db_entry.hyperparameters, str) else db_entry.hyperparameters,
             metrics=json.loads(db_entry.metrics) if isinstance(db_entry.metrics, str) else db_entry.metrics,
             model=db_entry.model,
@@ -244,6 +267,96 @@ async def train_model_rfr(data: ModelData):
             createdAt=db_entry.createdAt,
             updatedAt=db_entry.updatedAt,
         )
+
+        return response
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao treinar o modelo: {str(e)}")
+
+@app.post("/api/train-model-svr/", response_model=ModelResponse)
+async def train_model_svr(data: ModelData):
+    try:
+        start_time = time.time()
+        # Carregar ou gerar os dados de treino e teste
+        X_train = np.array(data.X_train)
+        y_train = np.array(data.y_train)
+        X_test = np.array(data.X_test)
+        y_test = np.array(data.y_test)
+        logger.info(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
+        logger.info(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
+
+        # Criar o pipeline
+        pipeline = make_pipeline(
+            StandardScaler(),
+            SVR(**data.hyperparameters)  # Alterado para SVR
+        )
+        pipeline.fit(X_train, y_train)
+
+        # Calcular as métricas
+        y_train_pred = pipeline.predict(X_train)
+        y_train_cv = cross_val_predict(pipeline, X_train, y_train, cv=5)
+        y_pred_val = pipeline.predict(X_test)
+
+        metrics_train = calculate_metrics(y_train, y_train_pred)
+        metrics_cv = calculate_metrics(y_train, y_train_cv)
+        metrics_pred = calculate_metrics(y_test, y_pred_val)
+
+        # Gerar e salvar os gráficos (como antes)
+        image_filename_1 = f"{data.attribute}_{data.model_name}_regression_comparison_plot.png"
+        image_path_1 = IMAGES_DIR.resolve() / image_filename_1
+        save_regression_comparison_plot(y_train, y_train_pred, y_train_cv, image_path_1)
+
+        image_filename_2 = f"{data.attribute}_{data.model_name}_plot_test_predictions.png"
+        image_path_2 = IMAGES_DIR.resolve() / image_filename_2
+        plot_test_predictions(y_test, y_pred_val, image_path_2)
+
+        # Caminhos dos gráficos
+        images_paths = {
+            "regression_comparison_plot": str(image_path_1),
+            "test_predictions_plot": str(image_path_2)
+        }
+
+        execution_time = time.time() - start_time  # Calcule o tempo de execução
+
+        metrics = {
+            "train": metrics_train,
+            "cv": metrics_cv,
+            "test": metrics_pred,
+            "time": {"execution_time": execution_time}
+        }
+
+        # Salvar o modelo em um arquivo
+        model_filename = f"{data.attribute}_{data.model_name}_model.pkl"
+        model_path = MODELS_DIR / model_filename
+        with open(model_path, "wb") as model_file:
+            pickle.dump(pipeline, model_file)
+
+        # Salvar o modelo e as métricas no banco de dados
+        db_entry = await prisma.predictivemodel.create(
+            data={
+                "model_name": data.model_name,
+                "attribute": data.attribute,
+                "variety_id": data.variety_id,
+                "metrics": json.dumps(metrics),
+                "graph": json.dumps(images_paths),
+                "hyperparameters": json.dumps(data.hyperparameters),
+                "model": str(model_path)
+            }
+        )
+
+        response = ModelResponse(
+            id=db_entry.id,
+            model_name=db_entry.model_name,
+            attribute=db_entry.attribute,
+            variety_id=db_entry.variety_id,
+            hyperparameters=db_entry.hyperparameters,  # Remova json.loads()
+            metrics=db_entry.metrics,  # Remova json.loads()
+            model=db_entry.model,
+            graph=db_entry.graph,  # Remova json.loads()
+            createdAt=db_entry.createdAt,
+            updatedAt=db_entry.updatedAt,
+        )
+
 
         return response
 
@@ -263,18 +376,21 @@ async def upload_data(file: UploadFile = File(...)):
 
 @app.get("/api/get-wavelengths/", response_model=List[SpectrumResponse])
 async def get_wavelengths(skip: int = Query(0, ge=0), limit: int = Query(100, ge=1)):
-    """Retorna todos os dados espectrais armazenados no banco."""
+    """Retorna todos os dados espectrais armazenados no banco, sem o campo de imagem."""
     try:
         db_entries = await prisma.spectrumdata.find_many(skip=skip, take=limit)
         return [
-            SpectrumResponse(
-                id=entry.id,
-                dataset=entry.dataset,
-                wavelengths=json.loads(entry.wavelengths) if isinstance(entry.wavelengths, str) else entry.wavelengths,
-                X=json.loads(entry.X) if isinstance(entry.X, str) else entry.X,
-                createdAt=entry.createdAt,
-                updatedAt=entry.updatedAt,
-            )
+            {
+                **SpectrumResponse(
+                    id=entry.id,
+                    dataset=entry.dataset,
+                    wavelengths=json.loads(entry.wavelengths) if isinstance(entry.wavelengths, str) else entry.wavelengths,
+                    X=json.loads(entry.X) if isinstance(entry.X, str) else entry.X,
+                    createdAt=entry.createdAt,
+                    updatedAt=entry.updatedAt,
+                    image=json.loads(entry.image) if isinstance(entry.image, str) else entry.image or {}  # Garante um dicionário vazio
+                ).dict()
+            }
             for entry in db_entries
         ]
     except Exception as e:
@@ -449,8 +565,7 @@ async def get_spectral_data(id: int):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar dados espectrais: {str(e)}")
-    
-# Rota corrigida para obter predições
+
 @app.get("/api/predictions/", response_model=list[PredictionResponse])
 async def list_predictions():
     try:
@@ -468,3 +583,102 @@ async def list_predictions():
         ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao listar dados: {str(e)}")
+
+@app.get("/api/dashboard/")
+async def get_dashboard_data():
+    try:
+        print("Buscando predições...")
+        predictions = await prisma.predictions.find_many()
+        if not predictions:
+            raise HTTPException(status_code=404, detail="Nenhuma predição encontrada")
+        
+        # Converta as predições para um formato serializável
+        predictions_data = [dict(prediction) for prediction in predictions]
+        
+        # Converta os campos datetime para string
+        for prediction in predictions_data:
+            for key, value in prediction.items():
+                if isinstance(value, datetime):
+                    prediction[key] = value.isoformat()
+
+        predictions_per_day = Counter(
+        datetime.fromisoformat(pred["createdAt"]).date().isoformat() for pred in predictions_data
+        )
+
+        report_data = {
+            "total_predictions": len(predictions_data),
+            "predictions_by_day": predictions_per_day,
+            "last_prediction": predictions_data[-1] if predictions_data else None,
+        }
+        
+        print("Buscando modelos preditivos...")
+        models = await prisma.predictivemodel.find_many()
+        varieties = await prisma.variety.find_many()
+
+        # Criando um dicionário {id: nome} para facilitar a busca
+        variety_dict = {variety.id: variety.name for variety in varieties}
+
+        models_data = []  # Vai armazenar os modelos associados a variedades
+        models_varieties = {}  # {variety_name: [lista de modelos]}
+
+        for model in models:
+            variety_name = variety_dict.get(model.variety_id, "Desconhecido")
+
+            models_data.append({
+                "model_name": model.model_name,
+                "attribute": model.attribute,
+                "metrics": model.metrics,
+                "variety_name": variety_name
+            })
+
+            # Agrupando modelos por variedade
+            if variety_name not in models_varieties:
+                models_varieties[variety_name] = []
+            models_varieties[variety_name].append(model.model_name)
+
+        # Se precisar retornar no formato de lista para o frontend:
+        models_varieties_list = [{"variety_name": k, "models": v} for k, v in models_varieties.items()]
+
+        print("Variedades e modelos treinados:", models_varieties_list)
+
+
+        print("Buscando dados espectrais...")
+        spectra = await prisma.spectrumdata.find_many()
+        
+        datasets = []
+        spec_imgs = []
+        
+        for s in spectra:
+            datasets.append(s.dataset)
+            spec_imgs.append(s.image)
+        
+        print("Buscando modelos preditivos...")
+        models = await prisma.predictivemodel.find_many()
+        images_train = []
+        images_test = []
+        
+        for s in models:
+            image_path_1 = f"{s.attribute}_{s.model_name}_regression_comparison_plot.png"  # Ajuste conforme necessário
+            image_path_2 = f"{s.attribute}_{s.model_name}_plot_test_predictions.png"
+            images_train.append(image_path_1)
+            images_test.append(image_path_2)
+        
+        print("Buscando gráficos de predições...")
+        graphs = await prisma.spectra.find_many()
+        pred_graphs = []
+        for p in graphs:
+            pred_graphs.append(p.graph)
+        
+        return {
+            "spectral_images_data": spec_imgs,
+            "report": report_data,
+            "train_images": images_train,
+            "test_images": images_test,
+            "predicted_specs": pred_graphs,
+            "models_metrics": models_data,
+            "models_varieties": models_varieties,
+        }
+
+    except Exception as e:
+        print(f"Erro inesperado: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro interno ao carregar dashboard: {str(e)}")

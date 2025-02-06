@@ -268,8 +268,10 @@ function SentLocalData() {
 
             {formData.filtro === "SG" && (
               <div className="p-4 max-w-4xl mx-auto">
+                <h2 className="text-lg font-semibold">Parâmetros do SG</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div>
+                  
                     <label htmlFor="window_length" className="block text-sm font-medium text-gray-700">Window Length</label>
                     <input
                       type="number"

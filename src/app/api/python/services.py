@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.signal import savgol_filter
 import base64
+import io
 from io import BytesIO
 from datetime import datetime, timezone
 import matplotlib.pyplot as plt
@@ -97,8 +98,7 @@ def save_regression_comparison_plot(y_train, y_pred_train, y_pred_cv, file_path)
     # Salvar gráfico como arquivo
     plt.savefig(str(file_path), format='png')
     plt.close()
-
-    
+  
 def plot_test_predictions(y_true_test, y_pred_test, file_path):
     # Calcular slope, offset, R² e RMSE
     model = LinearRegression().fit(y_pred_test.reshape(-1, 1), y_true_test)
@@ -120,3 +120,27 @@ def plot_test_predictions(y_true_test, y_pred_test, file_path):
              transform=plt.gca().transAxes, verticalalignment='top')
     plt.savefig(str(file_path), format='png')
     plt.close()
+
+def generate_plot(datasets, wavelengths):
+    if not datasets or not wavelengths:
+        raise ValueError("Dados inválidos para gerar o gráfico")
+    
+    plt.figure(figsize=(6, 4))
+    
+    # Converter os dados em um array NumPy para evitar problemas de formato
+    datasets = np.array(datasets)  # Converte lista de listas para array 2D
+    
+    for i in range(datasets.shape[0]):  # Itera sobre cada amostra individualmente
+        plt.plot(wavelengths, datasets[i, :])  # Garante que cada linha é 1D
+    
+    plt.title("Espectro de Dados")
+    plt.xlabel("Comprimento de Onda")
+    plt.ylabel("Intensidade")
+    
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    img_str = base64.b64encode(buf.read()).decode('utf-8')
+    buf.close()
+    
+    return img_str

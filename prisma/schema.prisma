@@ -48,14 +48,16 @@ model Spectra {
 model PredictiveModel {
   id             Int      @id @default(autoincrement())
   model_name     String
-  attribute      String   // Atributo da qualidade (Y)
-  hyperparameters Json    // Hiperparâmetros (JSON formatado)
-  metrics         Json    // Métricas do modelo treinado 
+  variety_id     Int   // ID da variedade da uva
+  attribute      String   
+  hyperparameters Json    
+  metrics         Json    
   model           String?           
   graph           Json
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
+
 
 model SpectrumData {
   id          Int       @id @default(autoincrement())
@@ -64,6 +66,7 @@ model SpectrumData {
   X           Json      @default("[]") // Valor padrão de lista vazia
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  image       Json
 }
 
 model TargetData {

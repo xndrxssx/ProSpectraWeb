@@ -55,20 +55,83 @@ function EditModel() {
   const [yTest, setYTest] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [modelSelected, setModelSelected] = useState(false);
-  const [hyperparameters, setHyperparameters] = useState(
-    "n_estimators=100; max_depth=10; criterion=squared_error; min_samples_split=2; min_samples_leaf=4; random_state=42"
-  );
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [attribute, setAttribute] = useState(""); // Estado para armazenar o atributo selecionado
   const [selectedModelName, setSelectedModelName] = useState<string>("");
+  const [hyperparameters, setHyperparameters] = useState(
+    selectedModelName === "SVR"
+      ? "kernel=rbf; degree=3; gamma=scale; tol=0.001; C=1.0; epsilon=0.1; cache_size=200"
+      : "n_estimators=100; max_depth=10; criterion=squared_error; min_samples_split=2; min_samples_leaf=4; random_state=42"
+  );
+  const [selectedVariety, setSelectedVariety] = useState<{ value: number; label: string } | null>(null);
+  const [varieties, setVarieties] = useState<{ id: string; name: string }[]>([]);
 
+  const handleModelChange = (newValue: SingleValue<SelectOption>) => {
+    if (!newValue) return;
+    setSelectedModelName(newValue.value);
+  
+    // Resetar os hiperparâmetros com base no modelo selecionado
+    if (newValue.value === "SVR") {
+      setHyperparameters("kernel=rbf; degree=3; gamma=scale; tol=0.001; C=1.0; epsilon=0.1; cache_size=200");
+    } else if (newValue.value === "RFR") {
+      setHyperparameters("n_estimators=100; max_depth=10; criterion=squared_error; min_samples_split=2; min_samples_leaf=4; random_state=42");
+    }
+  };
+
+  const renderHyperparameterFields = () => {
+    if (selectedModelName === "RFR") {
+      return (
+        <div>
+          <label>Hiperparâmetros para RFR:</label>
+          <input
+            type="text"
+            value={hyperparameters}
+            onChange={(e) => setHyperparameters(e.target.value)} // Atualiza os hiperparâmetros
+            placeholder="Digite os hiperparâmetros"
+            className="w-full p-2 border rounded-lg"
+          />
+        </div>
+      );
+    }
+  
+    if (selectedModelName === "SVR") {
+      return (
+        <div>
+          <label>Hiperparâmetros para SVR:</label>
+          <input
+            type="text"
+            value={hyperparameters}
+            onChange={(e) => setHyperparameters(e.target.value)} // Atualiza os hiperparâmetros
+            placeholder="Digite os hiperparâmetros"
+            className="w-full p-2 border rounded-lg"
+          />
+        </div>
+      );
+    }
+  
+    return null;
+  };
+  
+  useEffect(() => {
+    const fetchVarieties = async () => {
+      try {
+        const response = await fetch("/api/edit-variety");
+        const data = await response.json();
+        // console.log("Variedades encontradas no banco:", data);
+        setVarieties(data);
+      } catch (error) {
+        console.error("Erro ao buscar variedades:", error);
+      }
+    };
+      fetchVarieties();
+    }, []);
   // Fetch datasets and attributes on component mount
   useEffect(() => {
     const fetchDatasets = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/get-wavelengths`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/get-wavelengths/`);
         const data = await response.json();
         setDatasets(data);
       } catch (error) {
@@ -78,7 +141,7 @@ function EditModel() {
 
     const fetchAttributes = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/get-targets`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/get-targets/`);
         const data = await response.json();
         setAttributes(data);
       } catch (error) {
@@ -264,7 +327,10 @@ function EditModel() {
 
     console.log(parsedHyperparameters);
 
-
+    // Definir o endpoint com base no modelo selecionado
+    const endpoint = selectedModelName === "SVR"
+    ? "/api/train-model-svr/"
+    : "/api/train-model-rfr/";
     // Enviar os hiperparâmetros e treinar o modelo
     try {
       // console.log("X_train:", XTrain);
@@ -272,18 +338,19 @@ function EditModel() {
       // console.log("X_test:", XTest);
       // console.log("y_test:", yTest);
 
-      const trainResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/train-model/`, {
+      const trainResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model_name: selectedModelName, // Enviando o nome do modelo
-          attribute: attribute, 
+          model_name: selectedModelName,
+          variety_id: selectedVariety ? Number(selectedVariety.value) : null, // Garante que seja um número
+          attribute: attribute,
           hyperparameters: parsedHyperparameters,
           X_train: XTrain,
           X_test: XTest,
           y_train: yTrain,
           y_test: yTest,
-        }),
+        }),        
       });
 
       console.log("Payload Enviado:", JSON.stringify({
@@ -330,6 +397,18 @@ function EditModel() {
           />
             {isMounted && (
               <>
+              <Select
+              instanceId="variety-select"
+              options={varieties.map((v) => ({ label: v.name, value: String(v.id) }))} // Converte id para string
+              onChange={(newValue) => {
+                if (newValue) {
+                  setSelectedVariety({ value: Number(newValue.value), label: newValue.label }); // Converte de volta para número
+                } else {
+                  setSelectedVariety(null);
+                }
+              }}
+              placeholder="Selecione a variedade da uva"
+            />
                 <Select
                   instanceId="xtrain-select"
                   options={datasets.map((d) => ({ label: d.dataset, value: d.id }))}
@@ -362,14 +441,18 @@ function EditModel() {
                   components={{ MenuList }}
                 />
 
+                {/* Seleção do modelo */}
                 <Select
-                  options={[{ label: "Random Forest Regressor", value: "RandomForest" }]}
-                  onChange={(selectedOption) => {
-                    setModelSelected(true); // Marca o modelo como selecionado
-                    setSelectedModelName(selectedOption?.value || ""); // Armazena o nome do modelo
-                  }}
-                  placeholder="Selecione um Modelo"
+                  instanceId="model-select"
+                  options={[
+                    { label: "Random Forest Regressor", value: "RFR" },
+                    { label: "Support Vector Regressor", value: "SVR" },
+                  ]}
+                  onChange={handleModelChange}
+                  placeholder="Selecione um modelo"
                 />
+
+                {renderHyperparameterFields()}
               </>
             )}
 

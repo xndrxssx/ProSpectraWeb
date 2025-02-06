@@ -1,5 +1,5 @@
 # pylint: disable=missing-module-docstring,missing-class-docstring
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from datetime import datetime
 
@@ -15,6 +15,7 @@ class SpectraData(BaseModel):
 class ModelResponse(BaseModel):
     id: int
     model_name: str
+    variety_id: int  # Adicionando o campo da variedade
     attribute: str
     hyperparameters: Dict[str, Any]
     metrics: Dict[str, Dict[str, float]]
@@ -26,6 +27,7 @@ class ModelResponse(BaseModel):
 class ModelData(BaseModel):
     model_name: str
     attribute: str
+    variety_id: int
     hyperparameters: Dict[str, Any]
     X_train: List[List[float]]
     X_test: List[List[float]]
@@ -36,14 +38,17 @@ class SpectrumData(BaseModel):
     dataset: str  # Nome do atributo
     wavelengths: List[int]  # Comprimentos de onda (ex: [350, 400, 450, ...])
     X: List[List[float]]  # Matriz de features (amostras x comprimentos de onda)
+    filter: str  # Nome do filtro aplicado
+    sgParams: dict | None  # Opcional
 
 class SpectrumResponse(BaseModel):
     id: int
     dataset: str
-    wavelengths: List[int]  # Comprimentos de onda
-    X: List[List[float]]  # Matriz de features (amostras x comprimentos de onda)
+    wavelengths: List[float]  # Comprimentos de onda
+    X: List[List[float]]      # Matriz de features (amostras x comprimentos de onda)
     createdAt: datetime
     updatedAt: datetime
+    image: Dict[str, str]  # String Base64, não JSON
     
 class TargetData(BaseModel):
     attribute: str  # Nome do atributo
@@ -68,7 +73,7 @@ class ApplyModelRequest(BaseModel):
  
 class SavePredictionRequest(BaseModel):
     model_name: str
-    prediction_name: str
+    name: str
     spectral_data_id: int = Field(..., gt=0)
     prediction: float  # Mudando de `float` para `list[float]`
     
