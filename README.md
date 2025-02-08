@@ -62,6 +62,23 @@ Aqui estão algumas capturas de tela da interface do ProSpectra Web:
 
 ![VARIEDADE](https://github.com/user-attachments/assets/210ae82d-8537-47be-8584-35142987774f)
 
+### Dashboard - gráficos
+
+![grafico](https://github.com/user-attachments/assets/904a6334-6642-4056-829d-fea2ae7b86c8)
+
+### Dashboard - relatório
+
+![relatorio](https://github.com/user-attachments/assets/fe012d54-967b-4495-b720-abce70947503)
+
+### Dashboard - comparações
+
+![comparações](https://github.com/user-attachments/assets/d7a81e8d-831e-4860-85cc-2acb0512b07e)
+
+### Dashboard - espectros
+
+![espectros](https://github.com/user-attachments/assets/93e3559f-0c99-42b4-8d33-0768509768bd)
+
+
 ## Como Começar
 
 ### Instalação
