@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 from scipy.signal import savgol_filter
 import base64
@@ -45,7 +46,7 @@ def apply_snv(data):
     return snv_data
 
 def apply_sg(data, params):
-    return savgol_filter(data, window_length=params['window_length'], polyorder=params['polyorder'], deriv=params['deriv'], delta=params['delta'], axis=params['axis'], mode=params['mode'],cval=params['cval'])
+    return savgol_filter(data, window_length=params['window_length'], polyorder=params['polyorder'], deriv=params['deriv'])
 
 def plot_filtered_data(filtered_data, wl):
     filtered_data = np.array(filtered_data)
@@ -144,3 +145,38 @@ def generate_plot(datasets, wavelengths):
     buf.close()
     
     return img_str
+
+# Diretório onde as imagens serão armazenadas
+STATIC_DIR = Path("static")
+SPECTRA_DIR = STATIC_DIR / "spectra"
+SPECTRA_DIR.mkdir(parents=True, exist_ok=True)  # Criar se não existir
+
+def save_image_from_base64(name: str, image_obj: dict) -> str:
+    """Salva uma imagem Base64 na pasta static/spectra e retorna o caminho."""
+    try:
+        # Garantir que o diretório de destino exista
+        SPECTRA_DIR.mkdir(parents=True, exist_ok=True)
+        
+        # Acessar o campo 'data' do objeto image_obj, que contém a string Base64
+        base64_str = image_obj["data"]
+        
+        # Remover o prefixo "data:image/png;base64," se necessário
+        if base64_str.startswith("data:image/png;base64,"):
+            base64_str = base64_str.split(",", 1)[1]  # Pega somente a parte após o vírgula
+        
+        # Decodificar a string Base64 para bytes
+        image_data = base64.b64decode(base64_str)
+        
+        # Caminho onde a imagem será salva
+        file_path = SPECTRA_DIR / f"{name}.png"
+        
+        # Salvar a imagem no arquivo
+        with open(file_path, "wb") as f:
+            f.write(image_data)
+        
+        # Retornar o caminho relativo para servir a imagem no frontend
+        return f"/static/spectra/{name}.png"
+    
+    except Exception as e:
+        print(f"Erro ao salvar imagem: {e}")
+        return None

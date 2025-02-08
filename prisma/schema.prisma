@@ -48,7 +48,7 @@ model Spectra {
 model PredictiveModel {
   id             Int      @id @default(autoincrement())
   model_name     String
-  variety_id     Int   // ID da variedade da uva
+  variety         String
   attribute      String   
   hyperparameters Json    
   metrics         Json    

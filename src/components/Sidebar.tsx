@@ -90,12 +90,12 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
               </SidebarMenuItem>
 
               {/* Exportar */}
-              <SidebarMenuItem>
+              {/* <SidebarMenuItem>
                 <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
                   <FileText className="mr-2" />
                   <Link href="/reports" className="">Exportar</Link>
                 </SidebarMenuButton>
-              </SidebarMenuItem>
+              </SidebarMenuItem> */}
 
               {/* Histórico */}
               <SidebarMenuItem>

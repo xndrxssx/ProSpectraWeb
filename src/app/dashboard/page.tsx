@@ -16,8 +16,10 @@ type ModelMetrics = {
 };
 
 type Model = {
+  id: number;
   model_name: string;
   attribute: string;
+  variety_name: string;
   metrics: ModelMetrics;
 };
 
@@ -27,12 +29,24 @@ type ReportData = {
   last_prediction: { prediction: string; createdAt: string } | null;
 };
 
+type SpectralImageData = {
+  name: string;
+  image: string;
+}
+
+type PredictedSpecs = {
+  name: string;
+  variety: string;
+  filter: string;
+  graph: string;
+}
+
 type DashboardData = {
-  spectral_images_data: string[];
+  spectral_images_data: SpectralImageData[];
   report: ReportData;
   train_images: string[];
   test_images: string[];
-  predicted_specs: string[];
+  predicted_specs: PredictedSpecs[];
   models_metrics: Model[];
   models_varieties: ModelVariety[];
 };
@@ -47,7 +61,9 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState("gráficos");
   const [selectedAttribute, setSelectedAttribute] = useState("Todos");
   const [selectedVariety, setSelectedVariety] = useState<string>("Todos");
-  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [selectedModel, setSelectedModel] = useState<number | null>(null);
+  const [selectedSpectrum1, setSelectedSpectrum1] = useState<string>("");
+  const [selectedSpectrum2, setSelectedSpectrum2] = useState<string>("");
 
   const formatMetrics = (metrics: Record<string, number | string>): ReactNode => {
     if (metrics) {
@@ -74,27 +90,36 @@ function Dashboard() {
       // Verifica se os dados mudaram antes de atualizar o estado
       setDashboardData((prevData) => JSON.stringify(prevData) !== JSON.stringify(data) ? data : prevData);
   
-      if (data.models_metrics.length > 0) {
-        setSelectedModel((prev) => prev || data.models_metrics[0].model_name);
-      }
+      // if (data.models_metrics.length > 0) {
+      //   setSelectedModel((prev) => prev || data.models_metrics[0].model_name);
+      // }
     } catch (err) {
       console.error("Erro ao buscar dados do dashboard", err);
     }
-  };  
-
+  };
   if (!dashboardData) return <div className="text-center text-red-500">Nenhum dado disponível</div>;
 
   const handleModelChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedModel(event.target.value);
+    const modelId = parseInt(event.target.value, 10);
+    setSelectedModel(modelId);
   };
 
-  const trainImage = dashboardData.train_images.find((img) =>
-    img.includes(selectedModel)
-  );
-  const testImage = dashboardData.test_images.find((img) =>
-    img.includes(selectedModel)
-  );
+  // Encontrar os dados do modelo selecionado
+  const selectedModelData = dashboardData.models_metrics.find(model => model.id === selectedModel);
 
+  // Buscar imagens de treino e teste com base no nome e atributo do modelo selecionado
+  const trainImage = selectedModelData
+    ? dashboardData.train_images.find(img =>
+        img.includes(`${selectedModelData.attribute}_${selectedModelData.model_name}_regression_comparison_plot`)
+      )
+    : null;
+
+  const testImage = selectedModelData
+    ? dashboardData.test_images.find(img =>
+        img.includes(`${selectedModelData.attribute}_${selectedModelData.model_name}_plot_test_predictions`)
+      )
+    : null;
+  
   const renderCharts = () => {
     if (!dashboardData) return <div className="text-center text-red-500">Nenhum dado disponível</div>;
   
@@ -192,36 +217,111 @@ function Dashboard() {
     );    
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow h-97 relative">
-                <h2 className="text-lg font-bold mb-4">Total de Predições</h2>
-                <div className="w-full h-[250px]">
-                    <Bar data={predictionsByDayData} options={chartOptions} style={{ height: "100%", width: "100%" }} />
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+          {/* Primeira linha: Tempo de Execução por Modelo e Desempenho nos testes */}
+          <div className="bg-white p-6 rounded-lg shadow h-97 relative">
+            <h2 className="text-lg font-bold mb-4">Tempo de Execução por Modelo</h2>
+            <div className="w-full h-[250px]">
+              <Line data={executionTimeData} options={chartOptions} />
             </div>
-        {/* Gráfico de R² */}
-        <div className="bg-white p-6 rounded-lg shadow h-97 relative">
-          <h2 className="text-lg font-bold mb-4">Desempenho nos testes</h2>
-          <select value={selectedAttribute} onChange={(e) => setSelectedAttribute(e.target.value)} className="p-2 border rounded">
-          <option value="Todos">Todos</option>
-          {[...new Set(dashboardData.models_metrics.map((m) => m.attribute))].map((attr) => (
-            <option key={attr} value={attr}>{attr}</option>
-          ))}
-        </select>
-          <div className="w-full h-[250px]">
-            <Bar data={r2ChartData} options={chartOptions} style={{ height: "100%", width: "100%" }} />
+          </div>
+      
+          <div className="bg-white p-6 rounded-lg shadow h-97 relative">
+            <h2 className="text-lg font-bold mb-4">Desempenho nos testes</h2>
+            <select value={selectedAttribute} onChange={(e) => setSelectedAttribute(e.target.value)} className="p-2 border rounded">
+              <option value="Todos">Todos</option>
+              {[...new Set(dashboardData.models_metrics.map((m) => m.attribute))].map((attr) => (
+                <option key={attr} value={attr}>{attr}</option>
+              ))}
+            </select>
+            <div className="w-full h-[250px]">
+              <Bar data={r2ChartData} options={chartOptions} style={{ height: "100%", width: "100%" }} />
+            </div>
+          </div>
+      
+          {/* Segunda linha: Total de Predições */}
+          <div className="bg-white p-6 rounded-lg shadow h-97 relative">
+            <h2 className="text-lg font-bold mb-4">Total de Predições</h2>
+            <div className="w-full h-[250px]">
+              <Bar data={predictionsByDayData} options={chartOptions} style={{ height: "100%", width: "100%" }} />
+            </div>
           </div>
         </div>
-  
-        {/* Gráfico de Tempo de Execução */}
-        <div className="bg-white p-6 rounded-lg shadow h-97 relative">
-          <h2 className="text-lg font-bold mb-4">Tempo de Execução por Modelo</h2>
-          <div className="w-full h-[250px]">
-          <Line data={executionTimeData} options={chartOptions} />
+      );      
+  };
+
+  const renderSpectraTab = () => {
+    if (!dashboardData) return <div className="text-center text-red-500">Nenhum dado disponível</div>;
+
+    return (
+      <div className="mt-8 bg-white p-6 rounded-lg shadow">
+        <h2 className="text-lg font-bold text-center mb-4">Visualização de Espectros</h2>
+
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          {/* Seletor para o primeiro espectro */}
+          <div>
+            <label className="font-semibold">Selecione o primeiro espectro: </label>
+            {/* Seletor para o primeiro espectro */}
+            <select
+              value={selectedSpectrum1}
+              onChange={(e) => setSelectedSpectrum1(e.target.value)}
+              className="ml-2 p-2 border rounded"
+            >
+              <option value="">Selecione</option>
+              {dashboardData.predicted_specs.map((spectrum, index) => (
+                <option key={index} value={spectrum.graph}>
+                  {`${spectrum.name} - ${spectrum.variety} - ${spectrum.filter}`}
+                </option>
+              ))}
+            </select>
+
+
+          </div>
+
+          {/* Seletor para o segundo espectro */}
+          <div>
+            <label className="font-semibold">Selecione o segundo espectro: </label>
+            <select
+              value={selectedSpectrum2}
+              onChange={(e) => setSelectedSpectrum2(e.target.value)}
+              className="ml-2 p-2 border rounded"
+            >
+              <option value="">Selecione</option>
+              {dashboardData.spectral_images_data.map((spectrum, index) => (
+                <option key={index} value={spectrum.image}>{spectrum.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
-        
+
+        <div className="grid grid-cols-2 gap-4">
+          {/* Exibição do primeiro espectro */}
+          <div className="w-full border p-2 rounded-lg shadow-sm text-center">
+            {selectedSpectrum1 ? (
+              <img
+              src={`data:image/png;base64,${selectedSpectrum1}`}
+              alt="Espectro 1"
+              className="w-full h-auto rounded-lg"
+            />                        
+            ) : (
+              <p className="text-center text-gray-500">Nenhum espectro selecionado</p>
+            )}
+          </div>
+
+          {/* Exibição do segundo espectro */}
+          <div className="w-full border p-2 rounded-lg shadow-sm text-center">
+            {selectedSpectrum2 ? (
+              <img
+                  src={selectedSpectrum2}  // Usando o caminho da imagem diretamente
+                  alt="Espectro 2"
+                  className="w-full h-auto rounded-lg"
+                />
+            ) : (
+              <p className="text-center text-gray-500">Nenhum espectro selecionado</p>
+            )}
+          </div>
         </div>
-        </div>
+      </div>
     );
   };
 
@@ -287,26 +387,27 @@ function Dashboard() {
             <div className="mb-4 text-center">
               <label className="font-semibold">Escolha um modelo: </label>
               <select
-                value={selectedModel}
+                value={selectedModel ?? ""}
                 onChange={handleModelChange}
                 className="ml-2 p-2 border rounded"
               >
+                <option value="" disabled>Selecione um modelo</option>
                 {dashboardData.models_metrics.map((model) => (
-                  <option key={model.model_name} value={model.model_name}>
-                    {model.model_name}
+                  <option key={model.id} value={model.id}>
+                    {model.model_name} - {model.attribute}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Encontrar imagens do modelo selecionado */}
+            {/* Exibição das imagens */}
             {trainImage && testImage ? (
               <div className="w-full grid grid-cols-2 gap-2">
                 {/* Imagem de Treino */}
                 <div className="w-full border p-2 rounded-lg shadow-sm text-center">
                   <img
                     src={`/static/images/${trainImage}`}
-                    alt={`Treino - ${selectedModel}`}
+                    alt={`Treino - ${selectedModelData?.model_name}`}
                     className="w-full h-auto rounded-lg"
                   />
                 </div>
@@ -315,7 +416,7 @@ function Dashboard() {
                 <div className="w-full border p-2 rounded-lg shadow-sm text-center">
                   <img
                     src={`/static/images/${testImage}`}
-                    alt={`Teste - ${selectedModel}`}
+                    alt={`Teste - ${selectedModelData?.model_name}`}
                     className="w-full h-auto rounded-lg"
                   />
                 </div>
@@ -325,7 +426,8 @@ function Dashboard() {
             )}
           </div>
         );
-        
+        case "espectros":
+          return renderSpectraTab();
     }
   };
 
@@ -338,7 +440,7 @@ function Dashboard() {
 
           {/* Tabs */}
           <div className="flex justify-center space-x-4 mb-6">
-            {["gráficos", "relatórios", "comparações"].map((tab) => (
+            {["gráficos", "relatórios", "comparações", "espectros"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}

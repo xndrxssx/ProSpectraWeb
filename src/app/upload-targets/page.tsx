@@ -84,7 +84,7 @@ function SaveTargets() {
       <CustomSidebar />
       <main className="flex-1 flex items-center justify-center">
         <div className="bg-white/10 max-w-lg w-full backdrop-blur-sm rounded-lg p-8 shadow-lg">
-          <h1 className="text-2xl font-bold mb-4 text-center">Salvar Features</h1>
+          <h1 className="text-2xl font-bold mb-4 text-center">Salvar Targets</h1>
 
           {erro && <div className="text-red-500 text-center mb-4">{erro}</div>}
 
@@ -104,7 +104,7 @@ function SaveTargets() {
 
             <div>
               <label className="block text-sm font-medium mb-2">
-                Carregar Arquivo de Features
+                Carregar Arquivo de Targets
               </label>
               <input
                 type="file"

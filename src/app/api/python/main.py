@@ -1,7 +1,10 @@
-from fastapi.responses import JSONResponse
-from .services import apply_msc, apply_snv, apply_sg, plot_filtered_data, calculate_metrics, save_regression_comparison_plot, plot_test_predictions, generate_plot
+from sklearn.linear_model import LinearRegression
+from sklearn.decomposition import PCA
+from sklearn.neural_network import MLPRegressor
+from .services import apply_msc, apply_snv, apply_sg, plot_filtered_data, calculate_metrics, save_image_from_base64, save_regression_comparison_plot, plot_test_predictions
 from .models import SpectraData, ModelData, ModelResponse, SpectrumResponse, SpectrumData, TargetData, TargetResponse, XResponse, YResponse, ApplyModelRequest, SavePredictionRequest, PredictionResponse
 from sklearn.svm import SVR
+from sklearn.cross_decomposition import PLSRegression
 from collections import Counter
 import pickle
 import time
@@ -40,6 +43,8 @@ MODELS_DIR = Path("static/models")
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 IMAGES_DIR = Path("static/images")
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+SPECTRA_DIR = Path("static/spectra")
+SPECTRA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Configurando o logger
 logging.basicConfig(level=logging.INFO)
@@ -247,7 +252,7 @@ async def train_model_rfr(data: ModelData):
             data={
                 "model_name": data.model_name,
                 "attribute": data.attribute,
-                "variety_id": data.variety_id,
+                "variety": data.variety,
                 "metrics": json.dumps(metrics) if not isinstance(metrics, str) else metrics,
                 "graph": json.dumps(images_paths) if not isinstance(images_paths, str) else images_paths,
                 "hyperparameters": json.dumps(data.hyperparameters) if not isinstance(data.hyperparameters, str) else data.hyperparameters,
@@ -259,7 +264,7 @@ async def train_model_rfr(data: ModelData):
             id=db_entry.id,
             model_name=db_entry.model_name,
             attribute=db_entry.attribute,
-            variety_id=db_entry.variety_id,
+            variety=db_entry.variety,
             hyperparameters=json.loads(db_entry.hyperparameters) if isinstance(db_entry.hyperparameters, str) else db_entry.hyperparameters,
             metrics=json.loads(db_entry.metrics) if isinstance(db_entry.metrics, str) else db_entry.metrics,
             model=db_entry.model,
@@ -336,7 +341,7 @@ async def train_model_svr(data: ModelData):
             data={
                 "model_name": data.model_name,
                 "attribute": data.attribute,
-                "variety_id": data.variety_id,
+                "variety": data.variety,
                 "metrics": json.dumps(metrics),
                 "graph": json.dumps(images_paths),
                 "hyperparameters": json.dumps(data.hyperparameters),
@@ -348,7 +353,289 @@ async def train_model_svr(data: ModelData):
             id=db_entry.id,
             model_name=db_entry.model_name,
             attribute=db_entry.attribute,
-            variety_id=db_entry.variety_id,
+            variety=db_entry.variety,
+            hyperparameters=db_entry.hyperparameters,  # Remova json.loads()
+            metrics=db_entry.metrics,  # Remova json.loads()
+            model=db_entry.model,
+            graph=db_entry.graph,  # Remova json.loads()
+            createdAt=db_entry.createdAt,
+            updatedAt=db_entry.updatedAt,
+        )
+
+
+        return response
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao treinar o modelo: {str(e)}")
+
+@app.post("/api/train-model-plsr/", response_model=ModelResponse)
+async def train_model_plsr(data: ModelData):
+    try:
+        start_time = time.time()
+        # Carregar ou gerar os dados de treino e teste
+        X_train = np.array(data.X_train)
+        y_train = np.array(data.y_train)
+        X_test = np.array(data.X_test)
+        y_test = np.array(data.y_test)
+        logger.info(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
+        logger.info(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
+
+        # Criar o pipeline
+        pipeline = make_pipeline(
+            StandardScaler(),
+            PLSRegression(**data.hyperparameters)  
+        )
+        pipeline.fit(X_train, y_train)
+
+        # Calcular as métricas
+        y_train_pred = pipeline.predict(X_train)
+        y_train_cv = cross_val_predict(pipeline, X_train, y_train, cv=5)
+        y_pred_val = pipeline.predict(X_test)
+
+        metrics_train = calculate_metrics(y_train, y_train_pred)
+        metrics_cv = calculate_metrics(y_train, y_train_cv)
+        metrics_pred = calculate_metrics(y_test, y_pred_val)
+
+        # Gerar e salvar os gráficos (como antes)
+        image_filename_1 = f"{data.attribute}_{data.model_name}_regression_comparison_plot.png"
+        image_path_1 = IMAGES_DIR.resolve() / image_filename_1
+        save_regression_comparison_plot(y_train, y_train_pred, y_train_cv, image_path_1)
+
+        image_filename_2 = f"{data.attribute}_{data.model_name}_plot_test_predictions.png"
+        image_path_2 = IMAGES_DIR.resolve() / image_filename_2
+        plot_test_predictions(y_test, y_pred_val, image_path_2)
+
+        # Caminhos dos gráficos
+        images_paths = {
+            "regression_comparison_plot": str(image_path_1),
+            "test_predictions_plot": str(image_path_2)
+        }
+
+        execution_time = time.time() - start_time  # Calcule o tempo de execução
+
+        metrics = {
+            "train": metrics_train,
+            "cv": metrics_cv,
+            "test": metrics_pred,
+            "time": {"execution_time": execution_time}
+        }
+
+        # Salvar o modelo em um arquivo
+        model_filename = f"{data.attribute}_{data.model_name}_model.pkl"
+        model_path = MODELS_DIR / model_filename
+        with open(model_path, "wb") as model_file:
+            pickle.dump(pipeline, model_file)
+
+        # Salvar o modelo e as métricas no banco de dados
+        db_entry = await prisma.predictivemodel.create(
+            data={
+                "model_name": data.model_name,
+                "attribute": data.attribute,
+                "variety": data.variety,
+                "metrics": json.dumps(metrics),
+                "graph": json.dumps(images_paths),
+                "hyperparameters": json.dumps(data.hyperparameters),
+                "model": str(model_path)
+            }
+        )
+
+        response = ModelResponse(
+            id=db_entry.id,
+            model_name=db_entry.model_name,
+            attribute=db_entry.attribute,
+            variety=db_entry.variety,
+            hyperparameters=db_entry.hyperparameters,  # Remova json.loads()
+            metrics=db_entry.metrics,  # Remova json.loads()
+            model=db_entry.model,
+            graph=db_entry.graph,  # Remova json.loads()
+            createdAt=db_entry.createdAt,
+            updatedAt=db_entry.updatedAt,
+        )
+
+
+        return response
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao treinar o modelo: {str(e)}")
+
+@app.post("/api/train-model-pcr/", response_model=ModelResponse)
+async def train_model_pcr(data: ModelData):
+    try:
+        start_time = time.time()
+        # Carregar ou gerar os dados de treino e teste
+        X_train = np.array(data.X_train)
+        y_train = np.array(data.y_train)
+        X_test = np.array(data.X_test)
+        y_test = np.array(data.y_test)
+        logger.info(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
+        logger.info(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
+
+        # Criar o pipeline
+        pipeline = make_pipeline(
+            StandardScaler(),
+            PCA(**data.hyperparameters),
+            LinearRegression()
+        )
+        pipeline.fit(X_train, y_train)
+
+        # Calcular as métricas
+        y_train_pred = pipeline.predict(X_train)
+        y_train_cv = cross_val_predict(pipeline, X_train, y_train, cv=5)
+        y_pred_val = pipeline.predict(X_test)
+
+        metrics_train = calculate_metrics(y_train, y_train_pred)
+        metrics_cv = calculate_metrics(y_train, y_train_cv)
+        metrics_pred = calculate_metrics(y_test, y_pred_val)
+
+        # Gerar e salvar os gráficos (como antes)
+        image_filename_1 = f"{data.attribute}_{data.model_name}_regression_comparison_plot.png"
+        image_path_1 = IMAGES_DIR.resolve() / image_filename_1
+        save_regression_comparison_plot(y_train, y_train_pred, y_train_cv, image_path_1)
+
+        image_filename_2 = f"{data.attribute}_{data.model_name}_plot_test_predictions.png"
+        image_path_2 = IMAGES_DIR.resolve() / image_filename_2
+        plot_test_predictions(y_test, y_pred_val, image_path_2)
+
+        # Caminhos dos gráficos
+        images_paths = {
+            "regression_comparison_plot": str(image_path_1),
+            "test_predictions_plot": str(image_path_2)
+        }
+
+        execution_time = time.time() - start_time  # Calcule o tempo de execução
+
+        metrics = {
+            "train": metrics_train,
+            "cv": metrics_cv,
+            "test": metrics_pred,
+            "time": {"execution_time": execution_time}
+        }
+
+        # Salvar o modelo em um arquivo
+        model_filename = f"{data.attribute}_{data.model_name}_model.pkl"
+        model_path = MODELS_DIR / model_filename
+        with open(model_path, "wb") as model_file:
+            pickle.dump(pipeline, model_file)
+
+        # Salvar o modelo e as métricas no banco de dados
+        db_entry = await prisma.predictivemodel.create(
+            data={
+                "model_name": data.model_name,
+                "attribute": data.attribute,
+                "variety": data.variety,
+                "metrics": json.dumps(metrics),
+                "graph": json.dumps(images_paths),
+                "hyperparameters": json.dumps(data.hyperparameters),
+                "model": str(model_path)
+            }
+        )
+
+        response = ModelResponse(
+            id=db_entry.id,
+            model_name=db_entry.model_name,
+            attribute=db_entry.attribute,
+            variety=db_entry.variety,
+            hyperparameters=db_entry.hyperparameters,  # Remova json.loads()
+            metrics=db_entry.metrics,  # Remova json.loads()
+            model=db_entry.model,
+            graph=db_entry.graph,  # Remova json.loads()
+            createdAt=db_entry.createdAt,
+            updatedAt=db_entry.updatedAt,
+        )
+
+        return response
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao treinar o modelo: {str(e)}")
+    
+@app.post("/api/train-model-mlpr/", response_model=ModelResponse)
+async def train_model_svr(data: ModelData):
+    try:
+        start_time = time.time()
+        # Carregar ou gerar os dados de treino e teste
+        X_train = np.array(data.X_train)
+        y_train = np.array(data.y_train)
+        X_test = np.array(data.X_test)
+        y_test = np.array(data.y_test)
+        logger.info(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
+        logger.info(f"X_test shape: {X_test.shape}, y_test shape: {y_test.shape}")
+        
+        hyperparams = data.hyperparameters.copy()
+        for key, value in hyperparams.items():
+            if value == "false":
+                hyperparams[key] = False
+            elif value == "true":
+                hyperparams[key] = True
+            elif isinstance(value, str) and value.startswith("[") and value.endswith("]"):
+                try:
+                    hyperparams[key] = eval(value)  # Converte "[100]" para [100]
+                except:
+                    pass  # Evita erro caso eval não funcione corretamente
+
+        # Criar o pipeline
+        pipeline = make_pipeline(
+            StandardScaler(),
+            MLPRegressor(**hyperparams)  
+        )
+        pipeline.fit(X_train, y_train)
+
+        # Calcular as métricas
+        y_train_pred = pipeline.predict(X_train)
+        y_train_cv = cross_val_predict(pipeline, X_train, y_train, cv=5)
+        y_pred_val = pipeline.predict(X_test)
+
+        metrics_train = calculate_metrics(y_train, y_train_pred)
+        metrics_cv = calculate_metrics(y_train, y_train_cv)
+        metrics_pred = calculate_metrics(y_test, y_pred_val)
+
+        # Gerar e salvar os gráficos (como antes)
+        image_filename_1 = f"{data.attribute}_{data.model_name}_regression_comparison_plot.png"
+        image_path_1 = IMAGES_DIR.resolve() / image_filename_1
+        save_regression_comparison_plot(y_train, y_train_pred, y_train_cv, image_path_1)
+
+        image_filename_2 = f"{data.attribute}_{data.model_name}_plot_test_predictions.png"
+        image_path_2 = IMAGES_DIR.resolve() / image_filename_2
+        plot_test_predictions(y_test, y_pred_val, image_path_2)
+
+        # Caminhos dos gráficos
+        images_paths = {
+            "regression_comparison_plot": str(image_path_1),
+            "test_predictions_plot": str(image_path_2)
+        }
+
+        execution_time = time.time() - start_time  # Calcule o tempo de execução
+
+        metrics = {
+            "train": metrics_train,
+            "cv": metrics_cv,
+            "test": metrics_pred,
+            "time": {"execution_time": execution_time}
+        }
+
+        # Salvar o modelo em um arquivo
+        model_filename = f"{data.attribute}_{data.model_name}_model.pkl"
+        model_path = MODELS_DIR / model_filename
+        with open(model_path, "wb") as model_file:
+            pickle.dump(pipeline, model_file)
+
+        # Salvar o modelo e as métricas no banco de dados
+        db_entry = await prisma.predictivemodel.create(
+            data={
+                "model_name": data.model_name,
+                "attribute": data.attribute,
+                "variety": data.variety,
+                "metrics": json.dumps(metrics),
+                "graph": json.dumps(images_paths),
+                "hyperparameters": json.dumps(hyperparams),
+                "model": str(model_path)
+            }
+        )
+
+        response = ModelResponse(
+            id=db_entry.id,
+            model_name=db_entry.model_name,
+            attribute=db_entry.attribute,
+            variety=db_entry.variety,
             hyperparameters=db_entry.hyperparameters,  # Remova json.loads()
             metrics=db_entry.metrics,  # Remova json.loads()
             model=db_entry.model,
@@ -622,9 +909,10 @@ async def get_dashboard_data():
         models_varieties = {}  # {variety_name: [lista de modelos]}
 
         for model in models:
-            variety_name = variety_dict.get(model.variety_id, "Desconhecido")
+            variety_name = variety_dict.get(model.variety, "Desconhecido")
 
             models_data.append({
+                "id": model.id,
                 "model_name": model.model_name,
                 "attribute": model.attribute,
                 "metrics": model.metrics,
@@ -644,13 +932,13 @@ async def get_dashboard_data():
 
         print("Buscando dados espectrais...")
         spectra = await prisma.spectrumdata.find_many()
-        
-        datasets = []
-        spec_imgs = []
-        
+
+        # Criar lista de espectros com caminho salvo
+        spectral_data = []
         for s in spectra:
-            datasets.append(s.dataset)
-            spec_imgs.append(s.image)
+            image_path = save_image_from_base64(s.dataset, s.image)  # Chamando a função do service
+            if image_path:
+                spectral_data.append({"name": s.dataset, "image": image_path})
         
         print("Buscando modelos preditivos...")
         models = await prisma.predictivemodel.find_many()
@@ -665,12 +953,10 @@ async def get_dashboard_data():
         
         print("Buscando gráficos de predições...")
         graphs = await prisma.spectra.find_many()
-        pred_graphs = []
-        for p in graphs:
-            pred_graphs.append(p.graph)
+        pred_graphs = [{"name": p.name, "variety": p.variety, "filter": p.filter, "graph": p.graph} for p in graphs]
         
         return {
-            "spectral_images_data": spec_imgs,
+            "spectral_images_data": spectral_data,
             "report": report_data,
             "train_images": images_train,
             "test_images": images_test,

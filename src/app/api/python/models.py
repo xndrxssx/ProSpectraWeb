@@ -15,7 +15,7 @@ class SpectraData(BaseModel):
 class ModelResponse(BaseModel):
     id: int
     model_name: str
-    variety_id: int  # Adicionando o campo da variedade
+    variety: str  # Adicionando o campo da variedade
     attribute: str
     hyperparameters: Dict[str, Any]
     metrics: Dict[str, Dict[str, float]]
@@ -27,7 +27,7 @@ class ModelResponse(BaseModel):
 class ModelData(BaseModel):
     model_name: str
     attribute: str
-    variety_id: int
+    variety: str
     hyperparameters: Dict[str, Any]
     X_train: List[List[float]]
     X_test: List[List[float]]

@@ -17,6 +17,80 @@ function ExportReports () {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  const fetchData = async () => {
+    try {
+      const response = await fetch(
+        `/api/export?start_date=${filters.startDate}&end_date=${filters.endDate}&category=${filters.category}`
+      );
+      const data = await response.json();
+  
+      if (data.error) {
+        throw new Error(data.error);
+      }
+  
+      return data.data;
+    } catch (error) {
+      setError("Erro ao buscar dados do servidor.");
+      return null;
+    }
+  };
+  
+  const generatePDF = async () => {
+    const data = await fetchData();
+    if (!data) return;
+  
+    try {
+      const doc = new jsPDF();
+      doc.text("Relatório de Dados", 20, 20);
+      doc.text(`Data de Início: ${filters.startDate}`, 20, 40);
+      doc.text(`Data de Fim: ${filters.endDate}`, 20, 60);
+      doc.text(`Categoria: ${filters.category}`, 20, 80);
+  
+      let y = 100;
+      data.forEach((item: any) => {
+        doc.text(`ID: ${item.id}, Nome: ${item.name}, Local: ${item.local}`, 20, y);
+        y += 20;
+      });
+  
+      doc.save("relatorio.pdf");
+    } catch (e) {
+      setError("Erro ao gerar o PDF. Tente novamente.");
+    }
+  };
+  
+  const generateExcel = async () => {
+    const data = await fetchData();
+    if (!data) return;
+  
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Relatório");
+  
+      worksheet.columns = [
+        { header: "ID", key: "id", width: 10 },
+        { header: "Nome", key: "name", width: 20 },
+        { header: "Local", key: "local", width: 20 },
+        { header: "Data/Hora", key: "datetime", width: 25 },
+      ];
+  
+      data.forEach((item: any) => {
+        worksheet.addRow(item);
+      });
+  
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "relatorio.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError("Erro ao gerar o Excel. Tente novamente.");
+    }
+  };
+  
+
   const handleFormatChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedFormat(e.target.value);
   };
@@ -29,55 +103,6 @@ function ExportReports () {
       ...prevFilters,
       [name]: value,
     }));
-  };
-
-  const generatePDF = () => {
-    try {
-      const doc = new jsPDF();
-      doc.text("Relatório de Dados", 20, 20);
-      doc.text(`Data de Início: ${filters.startDate}`, 20, 40);
-      doc.text(`Data de Fim: ${filters.endDate}`, 20, 60);
-      doc.text(`Categoria: ${filters.category}`, 20, 80);
-
-      doc.save("relatorio.pdf");
-    } catch (e) {
-      setError("Erro ao gerar o PDF. Tente novamente.");
-    }
-  };
-
-  const generateExcel = async () => {
-    try {
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet("Relatório");
-
-      // Adicionar cabeçalhos
-      worksheet.columns = [
-        { header: "Data de Início", key: "startDate", width: 20 },
-        { header: "Data de Fim", key: "endDate", width: 20 },
-        { header: "Categoria", key: "category", width: 20 },
-      ];
-
-      // Adicionar dados
-      worksheet.addRow({
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-        category: filters.category,
-      });
-
-      // Gerar o arquivo Excel
-      const buffer = await workbook.xlsx.writeBuffer();
-
-      // Criar um link para download
-      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "relatorio.xlsx";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      setError("Erro ao gerar o Excel. Tente novamente.");
-    }
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {

@@ -72,13 +72,20 @@ function EditModel() {
     if (!newValue) return;
     setSelectedModelName(newValue.value);
   
-    // Resetar os hiperparâmetros com base no modelo selecionado
+    // Definir os hiperparâmetros padrão com base no modelo selecionado
     if (newValue.value === "SVR") {
       setHyperparameters("kernel=rbf; degree=3; gamma=scale; tol=0.001; C=1.0; epsilon=0.1; cache_size=200");
     } else if (newValue.value === "RFR") {
       setHyperparameters("n_estimators=100; max_depth=10; criterion=squared_error; min_samples_split=2; min_samples_leaf=4; random_state=42");
+    } else if (newValue.value === "PLSR") {
+      setHyperparameters("n_components=2; max_iter=500; tol=1e-06"); 
+    } else if (newValue.value === "PCR") {
+      setHyperparameters("n_components=2; tol=1e-06; random_state=42"); 
     }
-  };
+    else if (newValue.value === "MLPR") {
+      setHyperparameters("hidden_layer_sizes=[100]; activation=relu; solver=adam; alpha=0.0001; batch_size=auto; learning_rate=constant; learning_rate_init=0.001; power_t=0.5; max_iter=200; random_state=42; tol=0.0001; momentum=0.9; early_stopping=false; validation_fraction=0.1; epsilon=1e-08; n_iter_no_change=10; max_fun=15000");
+    }
+  };  
 
   const renderHyperparameterFields = () => {
     if (selectedModelName === "RFR") {
@@ -88,7 +95,7 @@ function EditModel() {
           <input
             type="text"
             value={hyperparameters}
-            onChange={(e) => setHyperparameters(e.target.value)} // Atualiza os hiperparâmetros
+            onChange={(e) => setHyperparameters(e.target.value)}
             placeholder="Digite os hiperparâmetros"
             className="w-full p-2 border rounded-lg"
           />
@@ -103,7 +110,52 @@ function EditModel() {
           <input
             type="text"
             value={hyperparameters}
-            onChange={(e) => setHyperparameters(e.target.value)} // Atualiza os hiperparâmetros
+            onChange={(e) => setHyperparameters(e.target.value)}
+            placeholder="Digite os hiperparâmetros"
+            className="w-full p-2 border rounded-lg"
+          />
+        </div>
+      );
+    }
+  
+    if (selectedModelName === "PLSR") {
+      return (
+        <div>
+          <label>Hiperparâmetros para PLSR:</label>
+          <input
+            type="text"
+            value={hyperparameters}
+            onChange={(e) => setHyperparameters(e.target.value)}
+            placeholder="Digite os hiperparâmetros"
+            className="w-full p-2 border rounded-lg"
+          />
+        </div>
+      );
+    }
+
+    if (selectedModelName === "PCR") {
+      return (
+        <div>
+          <label>Hiperparâmetros para PCR:</label>
+          <input
+            type="text"
+            value={hyperparameters}
+            onChange={(e) => setHyperparameters(e.target.value)}
+            placeholder="Digite os hiperparâmetros"
+            className="w-full p-2 border rounded-lg"
+          />
+        </div>
+      );
+    }
+
+    if (selectedModelName === "MLPR") {
+      return (
+        <div>
+          <label>Hiperparâmetros para MLPR:</label>
+          <input
+            type="text"
+            value={hyperparameters}
+            onChange={(e) => setHyperparameters(e.target.value)}
             placeholder="Digite os hiperparâmetros"
             className="w-full p-2 border rounded-lg"
           />
@@ -112,7 +164,7 @@ function EditModel() {
     }
   
     return null;
-  };
+  };  
   
   useEffect(() => {
     const fetchVarieties = async () => {
@@ -317,9 +369,12 @@ function EditModel() {
     .split("; ")
     .reduce((acc: Record<string, any>, param) => {
       const [key, value] = param.split("=");
+      
+      // Removendo aspas extras caso existam
+      const cleanValue = value.replace(/^['"]|['"]$/g, "");
 
-      // Converte para float se for um número válido
-      const parsedValue = isNaN(parseFloat(value)) ? value : parseFloat(value);
+      // Verifica se deve ser tratado como string ou número
+      const parsedValue = isNaN(parseFloat(cleanValue)) ? cleanValue : parseFloat(cleanValue);
 
       acc[key] = parsedValue;
       return acc;
@@ -328,33 +383,46 @@ function EditModel() {
     console.log(parsedHyperparameters);
 
     // Definir o endpoint com base no modelo selecionado
-    const endpoint = selectedModelName === "SVR"
-    ? "/api/train-model-svr/"
-    : "/api/train-model-rfr/";
+    const endpoint = {
+      SVR: "/api/train-model-svr/",
+      RFR: "/api/train-model-rfr/",
+      PLSR: "/api/train-model-plsr/",
+      PCR: "/api/train-model-pcr/",
+      MLPR: "/api/train-model-mlpr/"
+    };
+    
+    // Verifica se selectedModelName é uma chave válida
+    if (!(selectedModelName in endpoint)) {
+      throw new Error(`Modelo inválido: ${selectedModelName}`);
+    }
+
     // Enviar os hiperparâmetros e treinar o modelo
     try {
-      // console.log("X_train:", XTrain);
-      // console.log("y_train:", yTrain);
-      // console.log("X_test:", XTest);
-      // console.log("y_test:", yTest);
+      if (!selectedVariety) {
+        alert("Selecione uma variedade antes de treinar o modelo.");
+        return;
+      }
+      
+      console.log("Valor de variety_id antes do envio:", Number(selectedVariety?.value));
 
-      const trainResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+      const trainResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint[selectedModelName as keyof typeof endpoint]}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model_name: selectedModelName,
-          variety_id: selectedVariety ? Number(selectedVariety.value) : null, // Garante que seja um número
+          variety: selectedVariety?.label, // Agora enviando o nome da variedade
           attribute: attribute,
           hyperparameters: parsedHyperparameters,
           X_train: XTrain,
           X_test: XTest,
           y_train: yTrain,
           y_test: yTest,
-        }),        
-      });
+        }),
+      });      
 
       console.log("Payload Enviado:", JSON.stringify({
         model_name: selectedModelName, // Enviando o nome do modelo
+        variety: selectedVariety?.label,
         attribute: attribute,
         X_train: XTrain,
         y_train: yTrain,
@@ -380,7 +448,7 @@ function EditModel() {
   return (
     <div className="min-h-screen w-full flex bg-[#eaeaea] text-[#001E01]">
       <CustomSidebar />
-      <main className="flex-1 flex items-center justify-center">
+      <main className="flex-1 flex items-center justify-center overflow-y-auto">
         <div className="bg-white/10 w-3/5 backdrop-blur-sm rounded-lg p-16 shadow-lg">
           <h1 className="text-2xl font-bold mb-4 text-center">Treinar Modelo</h1>
           <p className="text-center text-sm mb-6">
@@ -397,18 +465,19 @@ function EditModel() {
           />
             {isMounted && (
               <>
-              <Select
-              instanceId="variety-select"
-              options={varieties.map((v) => ({ label: v.name, value: String(v.id) }))} // Converte id para string
-              onChange={(newValue) => {
-                if (newValue) {
-                  setSelectedVariety({ value: Number(newValue.value), label: newValue.label }); // Converte de volta para número
-                } else {
-                  setSelectedVariety(null);
-                }
-              }}
-              placeholder="Selecione a variedade da uva"
-            />
+                <Select
+                  instanceId="variety-select"
+                  options={varieties.map((v) => ({ label: v.name, value: v.id.toString() }))} // Garante que o id seja string
+                  onChange={(newValue) => {
+                    if (newValue) {
+                      setSelectedVariety({ value: Number(newValue.value), label: newValue.label });
+                    } else {
+                      setSelectedVariety(null);
+                    }
+                  }}
+                  placeholder="Selecione a variedade da uva"
+                />
+
                 <Select
                   instanceId="xtrain-select"
                   options={datasets.map((d) => ({ label: d.dataset, value: d.id }))}
@@ -447,6 +516,9 @@ function EditModel() {
                   options={[
                     { label: "Random Forest Regressor", value: "RFR" },
                     { label: "Support Vector Regressor", value: "SVR" },
+                    { label: "Partial Least Squares Regression", value: "PLSR" },
+                    { label: "Principal Component Regression", value: "PCR" },
+                    { label: "Multilayer Perceptron Regressor", value: "MLPR" },
                   ]}
                   onChange={handleModelChange}
                   placeholder="Selecione um modelo"
