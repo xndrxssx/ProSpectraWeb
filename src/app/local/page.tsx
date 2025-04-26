@@ -7,6 +7,12 @@ import withAuth from "@/components/withAuth";
 import { Variety } from "@prisma/client";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import Select, { StylesConfig, Theme } from "react-select";
+import { useDropzone } from "react-dropzone";
+
+
+interface Option { label: string; value: string }
+
 
 function SentLocalData() {
   const [file, setFile] = useState<File | null>(null);
@@ -29,6 +35,13 @@ function SentLocalData() {
   });
   const [error, setError] = useState("");
   const [variety, setVariedades] = useState<Variety[]>([]);
+  const filterOptions: Option[] = [
+    { label: "Nenhum", value: "nenhum" },
+    { label: "MSC",     value: "MSC" },
+    { label: "SNV",     value: "SNV" },
+    { label: "Savitzky–Golay", value: "SG" },
+  ];
+  
 
   useEffect(() => {
   const fetchVariedades = async () => {
@@ -45,11 +58,25 @@ function SentLocalData() {
     fetchVariedades();
   }, []);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0] || null;
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    accept: { 
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [],
+      "application/vnd.ms-excel": []
+    },
+    onDrop: (acceptedFiles) => {
+      const selectedFile = acceptedFiles[0];
+      if (selectedFile) {
+        setFile(selectedFile);
+        handleFile(selectedFile); // <- Você cria essa função baseada no que hoje está no seu handleFileChange
+      }
+    }
+  });
+
+  const handleFile = (selectedFile: File) => {
     setFile(selectedFile);
     setError("");
-
+    // Daqui pra frente, é igual ao seu handleFileChange atual, mas usando selectedFile
+    // Em vez de pegar de event.target.files
     console.log("Início do processamento do arquivo");
 
     if (selectedFile) {
@@ -161,11 +188,32 @@ function SentLocalData() {
       reader.readAsArrayBuffer(selectedFile);
     }
   };
+
+  const customStyles: StylesConfig<Option, false> = {
+    control: (base) => ({ ...base, borderRadius: 8, padding: "0.25rem" }),
+    option:  (base, state) => ({
+      ...base,
+      background: state.isFocused ? "#e6ffe6" : "white",
+      color: "#001E01",
+    }),
+  };
+  
+  const customTheme = (theme: Theme) => ({
+    ...theme,
+    colors: { ...theme.colors, primary25: "#e6ffe6", primary: "#165a16" },
+    borderRadius: 8,
+  });
+  
   
   const handleInputChange = (event: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
+  const varietyOptions: Option[] = variety.map(v => ({
+    label: v.name,
+    value: v.id.toString(),
+  }));
 
   const converterParaNumeros = (dados: string[][]): number[][] => {
     return dados
@@ -263,33 +311,33 @@ function SentLocalData() {
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">Anexar Arquivo (Excel):</label>
-              <input
-                type="file"
-                accept=".xlsx, .xls"
-                onChange={handleFileChange}
-                className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
-              />
+              <div
+                  {...getRootProps()}
+                  className="flex flex-col items-center justify-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                >
+                  <input {...getInputProps()} />
+                  {isDragActive ? (
+                    <p>Solte o arquivo aqui...</p>
+                  ) : (
+                    <p>Arraste e solte o arquivo aqui, ou clique para selecionar.</p>
+                  )}
+                </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">Variedade da Uva:</label>
-              <select
-                name="variedade"
-                value={formData.variedade}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-              >
-                <option value="">Selecione a variedade</option>
-                {variety && variety.length > 0 ? (
-                  variety.map((variety) => (
-                    <option key={variety.id} value={variety.name}>
-                      {variety.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="">Nenhuma variedade disponível</option>
-                )}
-              </select>
+              <Select
+                instanceId="variedade-select"
+                options={varietyOptions}
+                value={varietyOptions.find(o => o.value === formData.variedade) || null}
+                onChange={(opt) => setFormData(f => ({ ...f, variedade: opt?.value || "" }))}
+                isClearable
+                placeholder="Selecione a variedade"
+                styles={customStyles}
+                theme={customTheme}
+                isLoading={!varietyOptions.length}
+                noOptionsMessage={() => "Nenhuma variedade disponível"}
+                />
             </div>
 
             <div>
@@ -316,17 +364,16 @@ function SentLocalData() {
 
             <div>
               <label className="block text-sm font-medium mb-2">Escolha um filtro:</label>
-              <select
-                name="filtro"
-                value={formData.filtro}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-              >
-                <option value="nenhum">Nenhum</option>
-                <option value="MSC">Correção de dispersão multiplicativa (MSC)</option>
-                <option value="SNV">Padrão Normal Variável (SNV)</option>
-                <option value="SG">Filtro Savitzky–Golay</option>
-              </select>
+              <Select
+                instanceId="filtro-select"
+                options={filterOptions}
+                value={filterOptions.find(o => o.value === formData.filtro) || null}
+                onChange={opt => setFormData(f => ({ ...f, filtro: opt?.value || "nenhum" }))}
+                isClearable={false}
+                placeholder="Selecione um filtro"
+                styles={customStyles}
+                theme={customTheme}
+              />
             </div>
 
             {formData.filtro === "SG" && (

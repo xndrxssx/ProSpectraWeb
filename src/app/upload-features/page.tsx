@@ -6,12 +6,19 @@ import CustomSidebar from "@/components/Sidebar";
 import withAuth from "@/components/withAuth";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useDropzone } from "react-dropzone";
+import Select, { StylesConfig, Theme } from "react-select";
+
+interface Option {
+  label: string;
+  value: string;
+}
 
 function SaveWavelengths() {
   const [dataSet, setDataSet] = useState("");
   const [wavelengths, setWavelengths] = useState<number[]>([]);
   const [xData, setXData] = useState<number[][]>([]);
-  const [filter, setFilter] = useState<string | "Nenhum">("null");
+  const [filter, setFilter] = useState<string | "Nenhum">("Selecionar filtro");
   const [sgParams, setSgParams] = useState({
     window_length: 5,
     polyorder: 2,
@@ -22,75 +29,78 @@ function SaveWavelengths() {
     cval: 0,
   });
   const [erro, setErro] = useState<string | null>(null);
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-  
-      reader.onload = async () => {
-        const buffer = reader.result as ArrayBuffer;
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(buffer);
-  
-        const worksheet = workbook.getWorksheet(1);
-        if (!worksheet) {
-          toast.error("Planilha não encontrada.");
-          return;
-        }
-        toast.success("Planilha carregada com sucesso!");
-  
-        // Pegando a primeira linha como comprimento de onda
-        const firstRow = worksheet.getRow(1);
-        if (firstRow && Array.isArray(firstRow.values)) {
-          // Converter os valores da primeira linha para números
-          const wavelengthsData = firstRow.values
-            .slice(1) // Ignora o primeiro valor (rótulo ou índice)
-            .map(val => Number(val)) // Converte para número
-            .filter(val => !isNaN(val)); // Filtra valores inválidos
-  
-          if (wavelengthsData.length > 0) {
-            setWavelengths(wavelengthsData);
-            setErro(null); // Limpa qualquer erro anterior
-          } else {
-            toast.error("Valores da primeira linha são inválidos.");
-            return;
-          }
-  
-          // Pegando as linhas restantes para X DATA
-          const xDataArray: number[][] = [];
-          worksheet.eachRow((row, rowNumber) => {
-            if (rowNumber > 1) { // Ignorando a primeira linha
-              const rowValues = row.values as any[]; // Garantir que row.values seja tratado como um array
-  
-              // Converter os valores da linha para números
-              const rowData = rowValues
-                .slice(1) // Ignora o primeiro valor (rótulo ou índice)
-                .map(val => Number(val)) // Converte para número
-                .filter(val => !isNaN(val)); // Filtra valores inválidos
-  
-              if (rowData.length > 0) {
-                xDataArray.push(rowData);
-              } else {
-                console.warn(`Linha ${rowNumber} tem dados inválidos, ignorando...`);
-              }
-            }
-          });
-  
-          setXData(xDataArray);
-        } else {
-          setErro("Primeira linha não encontrada ou inválida.");
-        }
-      };
-  
-      reader.readAsArrayBuffer(file);
-    }
-  };
+  const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
     console.log("Wavelengths atualizado:", wavelengths);
     console.log("X Data atualizado:", xData);
   }, [wavelengths, xData]);
+
+  const handleFile = async (selectedFile: File) => {
+    if (selectedFile) {
+      const reader = new FileReader();
+  
+      reader.onload = async () => {
+        const buffer = reader.result as ArrayBuffer;
+        const workbook = new ExcelJS.Workbook();
+  
+        try {
+          await workbook.xlsx.load(buffer);
+  
+          const worksheet = workbook.getWorksheet(1);
+          if (!worksheet) {
+            toast.error("Planilha não encontrada.");
+            return;
+          }
+          toast.success("Planilha carregada com sucesso!");
+  
+          // Process the wavelengths (first row)
+          const firstRow = worksheet.getRow(1);
+          if (firstRow && Array.isArray(firstRow.values)) {
+            const wavelengthsData = firstRow.values
+              .slice(1) // Ignore the first value (label/index)
+              .map(val => Number(val))
+              .filter(val => !isNaN(val)); // Filter invalid values
+  
+            if (wavelengthsData.length > 0) {
+              setWavelengths(wavelengthsData);
+              setErro(null); // Clear previous errors
+            } else {
+              toast.error("Valores da primeira linha são inválidos.");
+              return;
+            }
+  
+            // Process the X data (remaining rows)
+            const xDataArray: number[][] = [];
+            worksheet.eachRow((row, rowNumber) => {
+              if (rowNumber > 1) { // Skip the first row (wavelengths)
+                const rowValues = row.values as any[];
+                const rowData = rowValues
+                  .slice(1) // Ignore the first value (label/index)
+                  .map(val => Number(val))
+                  .filter(val => !isNaN(val)); // Filter invalid values
+  
+                if (rowData.length > 0) {
+                  xDataArray.push(rowData);
+                } else {
+                  console.warn(`Linha ${rowNumber} tem dados inválidos, ignorando...`);
+                }
+              }
+            });
+  
+            setXData(xDataArray);
+          } else {
+            setErro("Primeira linha não encontrada ou inválida.");
+          }
+        } catch (error) {
+          toast.error("Erro ao processar o arquivo.");
+          console.error(error);
+        }
+      };
+  
+      reader.readAsArrayBuffer(selectedFile);
+    }
+  };  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,12 +136,42 @@ function SaveWavelengths() {
       setDataSet("");
       setWavelengths([]);
       setXData([]);
-      setFilter("null");
+      setFilter("Selecionar filtro");
     } catch (error) {
       toast.error("Erro ao salvar os dados.");
       console.error(error);
     }
   };
+
+  // Usando o React Dropzone
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    accept: { 
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [],
+      "application/vnd.ms-excel": []
+    },
+    onDrop: (acceptedFiles) => {
+      const selectedFile = acceptedFiles[0];
+      if (selectedFile) {
+        setFile(selectedFile);
+        handleFile(selectedFile); // <- Você cria essa função baseada no que hoje está no seu handleFileChange
+      }
+    }
+  });
+
+    const customStyles: StylesConfig<Option, false> = {
+      control: (base) => ({ ...base, borderRadius: 8, padding: "0.25rem" }),
+      option:  (base, state) => ({
+        ...base,
+        background: state.isFocused ? "#e6ffe6" : "white",
+        color: "#001E01",
+      }),
+    };
+    
+    const customTheme = (theme: Theme) => ({
+      ...theme,
+      colors: { ...theme.colors, primary25: "#e6ffe6", primary: "#165a16" },
+      borderRadius: 8,
+    });
 
   return (
     <div className="min-h-screen w-full flex bg-[#eaeaea] text-gray-900">
@@ -160,21 +200,45 @@ function SaveWavelengths() {
 
             <div>
               <label className="block text-sm font-medium mb-2">Carregar Arquivo de Dados</label>
-              <input type="file" onChange={handleFileUpload} className="w-full p-2 border border-gray-300 rounded-lg" required />
+              {/* Usando o React Dropzone */}
+              <div
+                  {...getRootProps()}
+                  className="text-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                >
+                  <input {...getInputProps()} />
+                  {isDragActive ? (
+                    <p>Solte o arquivo aqui...</p>
+                  ) : (
+                    <p>Arraste e solte o arquivo aqui, ou clique para selecionar.</p>
+                  )}
+                </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">Escolha um Filtro</label>
-              <select
-                value={filter || "Nenhum"}
-                onChange={(e) => setFilter(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-              >
-                <option value="Nenhum">Nenhum</option>
-                <option value="MSC">MSC</option>
-                <option value="SNV">SNV</option>
-                <option value="SG">Savitzky-Golay (SG)</option>
-              </select>
+              <Select
+                instanceId={"filtro-select"}
+                value={{ label: filter || "Nenhum", value: filter || "Nenhum" }}
+                onChange={(selectedOption) => {
+                  if (selectedOption) {
+                    setFilter(selectedOption.value);
+                  } else {
+                    setFilter("Nenhum"); // Quando não há seleção, define o filtro como "Nenhum"
+                  }
+                }}
+                options={[
+                  { label: "Nenhum", value: "Nenhum" },
+                  { label: "MSC", value: "MSC" },
+                  { label: "SNV", value: "SNV" },
+                  { label: "SG", value: "SG" },
+                ]}
+                className="w-full"
+                placeholder="Selecione o filtro"
+                isClearable
+                styles={customStyles}
+                theme={customTheme}
+              />
+
             </div>
 
             {filter === "SG" && (
@@ -182,8 +246,6 @@ function SaveWavelengths() {
                 <h2 className="text-lg font-semibold">Parâmetros do SG</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div>
-                
-                
                 <label>Window Length:</label>
                 <input type="number" value={sgParams.window_length} onChange={(e) => setSgParams({ ...sgParams, window_length: Number(e.target.value) })} className="w-full p-2 border border-gray-300 rounded-lg" required />
                 </div>
