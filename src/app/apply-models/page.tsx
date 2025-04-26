@@ -43,11 +43,13 @@ function ApplyModels() {
   useEffect(() => {
     const fetchModels = async () => {
       try {
+        toast.info("Carregando modelos...");
         const url = `${process.env.NEXT_PUBLIC_API_URL}/api/list-models/`;
-        console.log("Fetching models from:", url); // Log para depuração
+        console.log("Fetching models from:", url);
         const response = await fetch(url);
         const data = await response.json();
         setModels(data.models || []);
+        toast.dismiss(); // Fecha o toast de "Carregando" depois de sucesso
       } catch (error) {
         console.error("Erro ao carregar modelos:", error);
         toast.error("Erro ao carregar modelos.");
@@ -60,11 +62,13 @@ function ApplyModels() {
   useEffect(() => {
     const fetchSpectralData = async () => {
       try {
+        toast.info("Carregando dados espectrais...");
         const url = `${process.env.NEXT_PUBLIC_API_URL}/api/get-spectral-data/`;
-        console.log("Fetching spectral data from:", url); // Log para depuração
+        console.log("Fetching spectral data from:", url);
         const response = await fetch(url);
         const data = await response.json();
         setSpectralDataList(data || []);
+        toast.dismiss(); 
       } catch (error) {
         console.error("Erro ao carregar dados espectrais:", error);
         toast.error("Erro ao carregar dados espectrais.");
@@ -72,7 +76,7 @@ function ApplyModels() {
     };
   
     fetchSpectralData();
-  }, []);
+  }, []);  
 
   const handleFilterChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -99,16 +103,17 @@ function ApplyModels() {
 
     if (!filters.model || !filters.spectralDataId) {
       setError("Selecione um modelo e um dado espectral.");
-      toast.error("Selecione um modelo e um dado espectral.");
+      toast.warning("Selecione um modelo e um dado espectral.");
       return;
     }
 
     try {
-      const spectralDataId = parseInt(filters.spectralDataId, 10);  // Converte para inteiro
+      toast.info("Aplicando modelo...");
+      const spectralDataId = parseInt(filters.spectralDataId, 10);
       if (isNaN(spectralDataId)) {
         throw new Error("ID do dado espectral inválido.");
       }
-
+    
       const applyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/apply-model/`, {
         method: "POST",
         headers: {
@@ -118,10 +123,12 @@ function ApplyModels() {
           model_name: filters.model,
           spectral_data_id: spectralDataId,
         }),
-      });      
+      });
     
       const applyData = await applyResponse.json();
-
+    
+      toast.info("Salvando predição...");
+    
       const saveResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/save-prediction/`, {
         method: "POST",
         headers: {
@@ -130,24 +137,24 @@ function ApplyModels() {
         body: JSON.stringify({
           model_name: filters.model,
           name: filters.predictionName,
-          spectral_data_id: parseInt(filters.spectralDataId, 10),  // Converte para inteiro
+          spectral_data_id: parseInt(filters.spectralDataId, 10),
           prediction: parseFloat(applyData.prediction),
         }),
-      });   
-      
-      console.log("Payload: ", JSON.stringify({
+      });
+    
+      console.log("Payload:", {
         name: filters.predictionName,
         model_name: filters.model,
         spectral_data_id: parseInt(filters.spectralDataId, 10),
         prediction: applyData.prediction,
-      }))
-
+      });
+    
       toast.success("Predição salva com sucesso!");
     } catch (error) {
       setError("Erro ao aplicar o modelo ou salvar a predição.");
       toast.error("Erro ao aplicar o modelo ou salvar a predição.");
       console.error(error);
-    }
+    }    
   };
 
   return (

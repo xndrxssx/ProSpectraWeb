@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import ExcelJS from "exceljs";
 import CustomSidebar from "@/components/Sidebar";
 import withAuth from "@/components/withAuth";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function SaveTargets() {
   const [atributoNome, setAtributoNome] = useState("");
@@ -49,7 +51,7 @@ function SaveTargets() {
 
     // Verificação para garantir que todos os campos estejam preenchidos corretamente
     if (!atributoNome || YData.length === 0 ) {
-      setErro("Por favor, preencha todos os campos e carregue o arquivo.");
+      toast.error("Por favor, preencha todos os campos e carregue o arquivo.");
       return;
     }
 
@@ -60,6 +62,7 @@ function SaveTargets() {
     console.log("Payload", payload);
 
     try {
+      toast.info("Salvando targets...");
       // Enviar os dados ao backend
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/save-targets/`, {
         method: "POST",
@@ -70,11 +73,11 @@ function SaveTargets() {
       });
 
       if (!response.ok) throw new Error("Erro ao enviar os dados.");
-      alert("Features salvas com sucesso!");
+      toast.success("Features salvas com sucesso!");
       setAtributoNome("");
       setYData([]);
     } catch (error) {
-      setErro("Erro ao salvar os dados.");
+      toast.error("Erro ao salvar os dados.");
       console.error(error);
     }
   };
@@ -82,6 +85,7 @@ function SaveTargets() {
   return (
     <div className="min-h-screen w-full flex bg-[#eaeaea] text-[#001E01]">
       <CustomSidebar />
+      <ToastContainer /> {/* Adiciona o ToastContainer para exibir notificações */}
       <main className="flex-1 flex items-center justify-center">
         <div className="bg-white/10 max-w-lg w-full backdrop-blur-sm rounded-lg p-8 shadow-lg">
           <h1 className="text-2xl font-bold mb-4 text-center">Salvar Targets</h1>

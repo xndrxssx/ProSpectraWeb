@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import ExcelJS from "exceljs";
 import CustomSidebar from "@/components/Sidebar";
 import withAuth from "@/components/withAuth";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function SaveWavelengths() {
   const [dataSet, setDataSet] = useState("");
@@ -33,9 +35,10 @@ function SaveWavelengths() {
   
         const worksheet = workbook.getWorksheet(1);
         if (!worksheet) {
-          setErro("Planilha não encontrada.");
+          toast.error("Planilha não encontrada.");
           return;
         }
+        toast.success("Planilha carregada com sucesso!");
   
         // Pegando a primeira linha como comprimento de onda
         const firstRow = worksheet.getRow(1);
@@ -50,7 +53,7 @@ function SaveWavelengths() {
             setWavelengths(wavelengthsData);
             setErro(null); // Limpa qualquer erro anterior
           } else {
-            setErro("Valores da primeira linha são inválidos.");
+            toast.error("Valores da primeira linha são inválidos.");
             return;
           }
   
@@ -92,7 +95,7 @@ function SaveWavelengths() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!dataSet || wavelengths.length === 0 || xData.length === 0) {
-      setErro("Preencha todos os campos e carregue um arquivo.");
+      toast.error("Preencha todos os campos e carregue um arquivo.");
       return;
     }
 
@@ -111,6 +114,7 @@ function SaveWavelengths() {
     console.log("Payload a ser enviado:", payload);
 
     try {
+      toast.info("Enviando dados...");
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/save-wavelengths/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -118,13 +122,13 @@ function SaveWavelengths() {
       });
 
       if (!response.ok) throw new Error("Erro ao salvar os dados.");
-      alert("Dados salvos com sucesso!");
+      toast.success("Dados salvos com sucesso!");
       setDataSet("");
       setWavelengths([]);
       setXData([]);
       setFilter("null");
     } catch (error) {
-      setErro("Erro ao salvar os dados.");
+      toast.error("Erro ao salvar os dados.");
       console.error(error);
     }
   };
@@ -132,6 +136,7 @@ function SaveWavelengths() {
   return (
     <div className="min-h-screen w-full flex bg-[#eaeaea] text-gray-900">
       <CustomSidebar />
+      <ToastContainer />
       <main className="flex-1 flex items-center justify-center">
         <div className="bg-white/10 w-3/5 backdrop-blur-sm rounded-lg p-16 shadow-lg">
           <h1 className="text-2xl font-bold mb-4 text-center">Salvar Comprimentos de Onda</h1>

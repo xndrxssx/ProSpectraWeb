@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import CustomSidebar from "@/components/Sidebar";
 import withAuth from "@/components/withAuth";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 interface Variety {
   id?: number;
@@ -21,7 +23,7 @@ function EditVariety() {
   const [mensagem, setMensagem] = useState("");
   const [editando, setEditando] = useState<Variety | null>(null);
   const router = useRouter();
-  const limiteCaracteres = 190;
+  const limiteCaracteres = 200;
 
   const fetchVarieties = async () => {
     try {
@@ -30,7 +32,7 @@ function EditVariety() {
       setVariedades(data);
     } catch (error) {
       console.error("Erro ao buscar variedades", error);
-      setErro("Erro ao buscar variedades");
+      toast.error("Erro ao buscar variedades.");
     }
   };
 
@@ -42,7 +44,7 @@ function EditVariety() {
     e.preventDefault();
 
     if (!nomeVariedade || !descricao || !atributos) {
-      setErro("Todos os campos são obrigatórios.");
+      toast.error("Todos os campos são obrigatórios.");
       return;
     }
 
@@ -77,7 +79,7 @@ function EditVariety() {
 
       if (response.ok) {
         fetchVarieties();
-        setMensagem(editando ? "Variedade atualizada com sucesso!" : "Variedade criada com sucesso!");
+        toast.success(editando ? "Variedade atualizada com sucesso!" : "Variedade criada com sucesso!");
         setErro("");
         setNomeVariedade("");
         setDescricao("");
@@ -85,10 +87,10 @@ function EditVariety() {
         setEditando(null); // Limpa o estado de edição
       } else {
         const errorData = await response.json();
-        setErro(errorData.error || "Ocorreu um erro. Tente novamente.");
+        toast.error(errorData.error || "Ocorreu um erro. Tente novamente.");
       }
     } catch (error) {
-      setErro("Ocorreu um erro. Tente novamente.");
+      toast.error("Erro ao salvar variedade.");
     }
   };
 
@@ -114,10 +116,10 @@ function EditVariety() {
           fetchVarieties();
         } else {
           const errorData = await response.json();
-          alert(errorData.error || "Erro ao deletar variedade.");
+          toast.error(errorData.error || "Erro ao deletar variedade.");
         }
       } catch (error) {
-        alert("Erro ao deletar variedade.");
+        toast.error("Erro ao deletar variedade.");
       }
     }
   };
@@ -132,6 +134,7 @@ function EditVariety() {
   return (
     <div className="min-h-screen w-full flex bg-[#eaeaea] text-[#001E01]">
       <CustomSidebar />
+      <ToastContainer />
       <main className="flex-1 flex items-center justify-center">
         <div className="flex w-full max-w-4xl">
           <div className="bg-white/10 w-5/6 backdrop-blur-sm rounded-lg p-8 shadow-lg">
@@ -174,7 +177,7 @@ function EditVariety() {
                 value={atributos}
                 onChange={(e) => setAtributos(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded-lg"
-                placeholder="Ex: Resistente ao calor, sabor doce"
+                placeholder="Ex: Acidez titulável, pH"
               />
             </div>
             {erro && <p className="text-red-500 text-sm">{erro}</p>}

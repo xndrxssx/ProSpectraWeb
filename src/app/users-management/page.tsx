@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react";
 import CustomSidebar from "@/components/Sidebar";
 import withAuth from "@/components/withAuth";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 interface User {
   id: number;
@@ -15,20 +17,22 @@ function ManageUsers() {
   const [newUser, setNewUser] = useState({
     username: "",
     password: "",
-    userType: "produtor", // valor padrão
+    userType: "produtor",
   });
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
-  // Carregar os usuários da API ao montar o componente
   useEffect(() => {
     const fetchUsers = async () => {
       try {
+        toast.info("Carregando usuários...");
         const response = await fetch('/api/users-management');
         const data = await response.json();
         setUsers(data);
+        toast.success("Usuários carregados com sucesso!");
       } catch (error) {
         console.error("Erro ao buscar usuários:", error);
+        toast.error("Erro ao carregar usuários.");
+      } finally {
+        toast.dismiss();
       }
     };
 
@@ -42,12 +46,11 @@ function ManageUsers() {
       [name]: value,
     }));
   };
-  
 
   const validateUserData = () => {
     const { username, password, userType } = newUser;
     if (!username || !password || !userType) {
-      setError("Todos os campos devem ser preenchidos.");
+      toast.warning("Todos os campos devem ser preenchidos.");
       return false;
     }
     return true;
@@ -55,11 +58,9 @@ function ManageUsers() {
 
   const handleAddUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
-  
+
     if (!validateUserData()) return;
-  
+
     try {
       const response = await fetch('/api/users-management', {
         method: 'POST',
@@ -70,22 +71,21 @@ function ManageUsers() {
       });
       const data = await response.json();
       if (response.ok) {
-        // Verifique se a resposta contém os dados corretos do usuário
         if (data.user) {
           setUsers((prevUsers) => [...prevUsers, data.user]);
           setNewUser({ username: "", password: "", userType: "produtor" });
-          setSuccess("Usuário adicionado com sucesso.");
+          toast.success("Usuário adicionado com sucesso!");
         } else {
-          setError("ID do usuário não foi retornado corretamente.");
+          toast.error("ID do usuário não foi retornado corretamente.");
         }
       } else {
-        setError(data.error || "Erro ao adicionar usuário.");
+        toast.error(data.error || "Erro ao adicionar usuário.");
       }
     } catch (error) {
       console.error("Erro ao criar o usuário:", error);
-      setError("Erro ao criar o usuário.");
+      toast.error("Erro ao criar o usuário.");
     }
-  };  
+  };
 
   const handleUpdateUserType = async (userId: number, newUserType: string) => {
     try {
@@ -103,13 +103,13 @@ function ManageUsers() {
             user.id === userId ? { ...user, userType: newUserType } : user
           )
         );
-        setSuccess("Tipo de usuário atualizado com sucesso.");
+        toast.success("Tipo de usuário atualizado com sucesso!");
       } else {
-        setError(data.error || "Erro ao atualizar o tipo de usuário.");
+        toast.error(data.error || "Erro ao atualizar o tipo de usuário.");
       }
     } catch (error) {
       console.error("Erro ao atualizar o tipo de usuário:", error);
-      setError("Erro ao atualizar o tipo de usuário.");
+      toast.error("Erro ao atualizar o tipo de usuário.");
     }
   };
 
@@ -125,26 +125,26 @@ function ManageUsers() {
       const data = await response.json();
       if (response.ok) {
         setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userId));
-        setSuccess("Usuário excluído com sucesso.");
+        toast.success("Usuário excluído com sucesso!");
       } else {
-        setError(data.error || "Erro ao excluir o usuário.");
+        toast.error(data.error || "Erro ao excluir o usuário.");
       }
     } catch (error) {
       console.error("Erro ao excluir usuário:", error);
-      setError("Erro ao excluir o usuário.");
+      toast.error("Erro ao excluir o usuário.");
     }
   };
 
   return (
     <div className="min-h-screen w-full flex bg-[#eaeaea]"> 
       <CustomSidebar />
+      <ToastContainer />
+      {/* Container principal */}
       <div className="flex-1 flex items-center justify-center">
         <div className="flex w-full max-w-4xl">
           {/* Formulário para adicionar usuário */}
           <div className="bg-white/10 w-2/3 backdrop-blur-sm rounded-lg p-8 shadow-lg">
             <h2 className="text-2xl font-bold mb-4 text-center">Adicionar Usuário</h2>
-            {error && <div className="text-red-500 mb-4">{error}</div>}
-            {success && <div className="text-green-500 mb-4">{success}</div>}
   
             <form onSubmit={handleAddUser} className="space-y-4">
               <div>

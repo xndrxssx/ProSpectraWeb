@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import CustomSidebar from "@/components/Sidebar";
 import withAuth from "@/components/withAuth";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 interface Prediction {
   id: number;
@@ -21,14 +23,19 @@ function MeasurementHistory() {
   useEffect(() => {
     const fetchPredictions = async () => {
       try {
+        toast.info("Carregando histórico de predições...");
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/predictions/`);
         if (!response.ok) throw new Error("Erro ao buscar predições");
+
         const data: Prediction[] = await response.json();
         setPredictions(data);
+        toast.success("Histórico carregado com sucesso!");
       } catch (err) {
         setError("Erro ao carregar histórico de predições.");
+        toast.error("Erro ao carregar histórico de predições.");
       } finally {
         setLoading(false);
+        toast.dismiss(); // Fecha toasts "Carregando..." se ainda estiver aberto
       }
     };
 
@@ -38,6 +45,7 @@ function MeasurementHistory() {
   return (
     <div className="min-h-screen w-full flex bg-[#eaeaea] text-[#001E01]">
       <CustomSidebar />
+      <ToastContainer />
       <main className="flex-1 p-6">
 
         <div className="bg-white/10 w-full backdrop-blur-sm rounded-lg p-8 shadow-lg">
