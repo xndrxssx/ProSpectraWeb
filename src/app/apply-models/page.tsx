@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Select, { GroupBase, StylesConfig, Theme } from "react-select";
 import CustomSidebar from "@/components/Sidebar";
 import withAuth from "@/components/withAuth";
 import { toast, ToastContainer } from "react-toastify";
@@ -24,6 +25,38 @@ interface SelectedSpectralData {
   graph: string;
 }
 
+interface Option {
+  label: string;
+  value: string;
+}
+
+// estilos customizados com Tailwind + react-select
+const customStyles: StylesConfig<Option, false> = {
+  control: (provided) => ({
+    ...provided,
+    borderRadius: 8,
+    padding: "0.25rem",
+    borderColor: "#ccc",
+    "&:hover": { borderColor: "#165a16" },
+    boxShadow: "none",
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    backgroundColor: state.isFocused ? "#e6ffe6" : "white",
+    color: "#001E01",
+  }),
+};
+
+const customTheme = (theme: Theme) => ({
+  ...theme,
+  borderRadius: 8,
+  colors: {
+    ...theme.colors,
+    primary25: "#e6ffe6",
+    primary: "#165a16",
+  },
+});
+
 function ApplyModels() {
   const router = useRouter();
   const [filters, setFilters] = useState({
@@ -34,11 +67,19 @@ function ApplyModels() {
     spectralDataId: "",
     predictionName: "",
   });
-  const [spectralData, setSpectralData] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [models, setModels] = useState<string[]>([]); 
   const [spectralDataList, setSpectralDataList] = useState<SpectralData[]>([]);
   const [selectedSpectralData, setSelectedSpectralData] = useState<SelectedSpectralData | null>(null);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [isLoadingSpectral, setIsLoadingSpectral] = useState(false);
+
+  // OPTIONS para o React-Select
+  const modelOptions: Option[] = models.map(m => ({ label: m, value: m }));
+  const spectralOptions: Option[] = spectralDataList.map(d => ({
+    label: `${d.name} — ${d.variety} — ${d.filter}`,
+    value: d.id,
+  }));
 
   useEffect(() => {
     const fetchModels = async () => {
@@ -98,11 +139,31 @@ function ApplyModels() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  // quando o usuário seleciona um spectralData, busca detalhes
+  const onSpectralChange = async (opt: Option | null) => {
+    setFilters(f => ({ ...f, spectralDataId: opt?.value || "" }));
+    if (!opt) {
+      setSelectedSpectralData(null);
+      return;
+    }
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/get-spectral-data/${opt.value}`);
+      const data = await res.json();
+      setSelectedSpectralData(data);
+    } catch {
+      toast.error("Erro ao buscar detalhes do dado espectral.");
+    }
+  };
+
+  // quando o usuário seleciona um modelo
+  const onModelChange = (opt: Option | null) => {
+    setFilters(f => ({ ...f, model: opt?.value || "" }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!filters.model || !filters.spectralDataId) {
-      setError("Selecione um modelo e um dado espectral.");
       toast.warning("Selecione um modelo e um dado espectral.");
       return;
     }
@@ -170,20 +231,16 @@ function ApplyModels() {
               <label htmlFor="model" className="block text-sm font-medium mb-2">
                 Modelo Preditivo:
               </label>
-              <select
-                id="model"
-                name="model"
-                value={filters.model}
-                onChange={handleFilterChange}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-              >
-                <option value="">Selecione um modelo</option>
-                {models.map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-              </select>
+              <Select
+                isLoading={isLoadingModels}
+                options={modelOptions}
+                value={modelOptions.find(o => o.value === filters.model) || null}
+                onChange={onModelChange}
+                placeholder="Selecione um modelo"
+                styles={customStyles}
+                theme={customTheme}
+                isClearable
+              />
             </div>
             <div>
               <label htmlFor="predictionName" className="block text-sm font-medium mb-2">
@@ -202,21 +259,17 @@ function ApplyModels() {
               <label htmlFor="spectralDataId" className="block text-sm font-medium mb-2">
                 Dados Espectrais:
               </label>
-              <select
-                id="spectralDataId"
-                name="spectralDataId"
-                value={filters.spectralDataId}
-                onChange={handleFilterChange}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-              >
-                <option value="">Selecione os dados espectrais</option>
-                {Array.isArray(spectralDataList) &&
-                  spectralDataList.map((data: SpectralData) => (
-                    <option key={data.id} value={data.id}>
-                      {`${data.name} - ${data.variety} - ${data.filter}`}
-                    </option>
-                  ))}
-              </select>
+              <Select
+                isLoading={isLoadingSpectral}
+                options={spectralOptions}
+                value={spectralOptions.find(o => o.value === filters.spectralDataId) || null}
+                onChange={onSpectralChange}
+                placeholder="Selecione os dados espectrais"
+                styles={customStyles}
+                theme={customTheme}
+                isClearable
+                noOptionsMessage={() => "Nenhuma opção encontrada"}
+              />
               {selectedSpectralData && (
                 <div className="mt-4 p-4 border border-gray-300 rounded-lg">
                   <h3 className="font-bold">Detalhes do Dado Espectral:</h3>

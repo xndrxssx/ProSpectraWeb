@@ -5,12 +5,19 @@ import CustomSidebar from "@/components/Sidebar";
 import withAuth from "@/components/withAuth";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import Select, { StylesConfig, Theme, ActionMeta, SingleValue, MultiValue } from "react-select";
+
 
 interface User {
   id: number;
   username: string;
   userType: string;
 }
+
+type OptionType = {
+  value: string;
+  label: string;
+};
 
 function ManageUsers() {
   const [users, setUsers] = useState<User[]>([]);
@@ -47,6 +54,11 @@ function ManageUsers() {
     }));
   };
 
+  const userTypeOptions = [
+    { value: "produtor", label: "Produtor" },
+    { value: "admin", label: "Administrador" },
+  ];  
+
   const validateUserData = () => {
     const { username, password, userType } = newUser;
     if (!username || !password || !userType) {
@@ -55,6 +67,44 @@ function ManageUsers() {
     }
     return true;
   };
+
+  const handleUserTypeChange = (
+    newValue: SingleValue<OptionType> | MultiValue<OptionType>,
+    actionMeta: ActionMeta<OptionType>
+  ) => {
+    if (newValue && !Array.isArray(newValue)) {
+      const singleValue = newValue as SingleValue<OptionType>;
+      // Verificando se o singleValue não é null
+      if (singleValue) {
+        setNewUser((prev) => ({
+          ...prev,
+          userType: singleValue.value,
+        }));
+      }
+    }
+  };
+
+  const customStyles: StylesConfig<OptionType, boolean> = {
+    control: (provided) => ({
+      ...provided,
+      borderRadius: '0.5rem',
+      borderColor: '#d1d5db', // cinza claro
+      padding: '2px',
+      boxShadow: 'none',
+      "&:hover": {
+        borderColor: '#1f7e1f', // verde hover
+      },
+    }),
+  };
+  
+  const customTheme = (theme: Theme): Theme => ({
+    ...theme,
+    colors: {
+      ...theme.colors,
+      primary25: '#d1fae5', // verde claro no hover
+      primary: '#165a16',   // verde principal
+    },
+  });  
 
   const handleAddUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -171,16 +221,18 @@ function ManageUsers() {
               </div>
               <div>
                 <label htmlFor="userType" className="block text-sm font-medium mb-2">Tipo de Usuário</label>
-                <select
+                <Select
+                  instanceId={"userTypeSelect"}
                   id="userType"
                   name="userType"
-                  value={newUser.userType}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="produtor">Produtor</option>
-                  <option value="admin">Administrador</option>
-                </select>
+                  options={userTypeOptions}
+                  value={userTypeOptions.find(option => option.value === newUser.userType)}
+                  onChange={handleUserTypeChange}
+                  className="basic-single"
+                  classNamePrefix="select"
+                  styles={customStyles}
+                  theme={customTheme}
+                />
               </div>
               <button
                 type="submit"

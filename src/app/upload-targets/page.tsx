@@ -6,51 +6,58 @@ import CustomSidebar from "@/components/Sidebar";
 import withAuth from "@/components/withAuth";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useDropzone } from "react-dropzone";
 
 function SaveTargets() {
   const [atributoNome, setAtributoNome] = useState("");
   const [YData, setYData] = useState<number[]>([]); // Atualizar para um array de arrays
   const [erro, setErro] = useState<string | null>(null);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-  
-      reader.onload = async () => {
-        const buffer = reader.result as ArrayBuffer;
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(buffer);
-  
-        const worksheet = workbook.getWorksheet(1);
-        if (!worksheet) {
-          setErro("Planilha não encontrada.");
-          return;
-        }
-  
-        let yData: number[] = [];  // Array para armazenar os dados como números
-        worksheet.eachRow((row, rowNumber) => {
-          if (Array.isArray(row.values)) {
-            // Agora pegamos todos os valores, sem ignorar o título
-            const rowData = row.values.map(Number).filter(val => !isNaN(val)); // Converte para números e filtra valores inválidos
-            yData.push(...rowData);  // Adiciona todos os valores ao array simples
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    accept: { 
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [],
+      "application/vnd.ms-excel": []
+    }, // Aceitar apenas arquivos Excel
+    onDrop: async (acceptedFiles) => {
+      const file = acceptedFiles[0]; // Pega o primeiro arquivo
+
+      if (file) {
+        const reader = new FileReader();
+
+        reader.onload = async () => {
+          const buffer = reader.result as ArrayBuffer;
+          const workbook = new ExcelJS.Workbook();
+          await workbook.xlsx.load(buffer);
+
+          const worksheet = workbook.getWorksheet(1);
+          if (!worksheet) {
+            setErro("Planilha não encontrada.");
+            return;
           }
-        });
-  
-        setYData(yData);  // Atualiza YData com todos os valores do arquivo
-        setErro(null);  // Limpa o erro caso o arquivo tenha sido carregado corretamente
-      };
-  
-      reader.readAsArrayBuffer(file);
-    }
-  };  
-  
+
+          let yData: number[] = [];  // Array para armazenar os dados como números
+          worksheet.eachRow((row, rowNumber) => {
+            if (Array.isArray(row.values)) {
+              // Agora pegamos todos os valores, sem ignorar o título
+              const rowData = row.values.map(Number).filter(val => !isNaN(val)); // Converte para números e filtra valores inválidos
+              yData.push(...rowData);  // Adiciona todos os valores ao array simples
+            }
+          });
+
+          setYData(yData);  // Atualiza YData com todos os valores do arquivo
+          setErro(null);  // Limpa o erro caso o arquivo tenha sido carregado corretamente
+        };
+
+        reader.readAsArrayBuffer(file);
+      }
+    },
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Verificação para garantir que todos os campos estejam preenchidos corretamente
-    if (!atributoNome || YData.length === 0 ) {
+    if (!atributoNome || YData.length === 0) {
       toast.error("Por favor, preencha todos os campos e carregue o arquivo.");
       return;
     }
@@ -107,14 +114,19 @@ function SaveTargets() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Carregar Arquivo de Targets
-              </label>
-              <input
-                type="file"
-                onChange={handleFileUpload}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-              />
+              <label className="block text-sm font-medium mb-2">Carregar Arquivo de Dados</label>
+              {/* Usando o React Dropzone */}
+              <div
+                  {...getRootProps()}
+                  className="text-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                >
+                  <input {...getInputProps()} />
+                  {isDragActive ? (
+                    <p>Solte o arquivo aqui...</p>
+                  ) : (
+                    <p>Arraste e solte o arquivo aqui, ou clique para selecionar.</p>
+                  )}
+                </div>
             </div>
 
             <div className="text-center">

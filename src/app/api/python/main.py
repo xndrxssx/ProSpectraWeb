@@ -21,9 +21,23 @@ from pathlib import Path
 from typing import List
 from fastapi import File, HTTPException,FastAPI, Query, UploadFile
 from prisma import Prisma
+import hid
+from typing import Tuple, List, Literal
 
 app = FastAPI()
 prisma = Prisma()
+
+# IDs do dispositivo HID
+VENDOR_ID = 0x0451
+PRODUCT_ID = 0x4200
+
+# Comandos do DLP NIRscan Nano (substitua com os comandos corretos conforme o manual)
+CMD_READ_DEVICE_STATUS = [0x03, 0x04]
+CMD_PERFORM_SCAN = [0x18, 0x02]
+CMD_FILE_GET_READSIZE = [0x2D, 0x00]
+CMD_FILE_GET_DATA = [0x2E, 0x00]
+
+SCAN_DATA_FILE_ID = [0x04]  # ID do arquivo de dados do scan
 
 @app.on_event("startup")
 async def startup():
@@ -968,3 +982,180 @@ async def get_dashboard_data():
     except Exception as e:
         print(f"Erro inesperado: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro interno ao carregar dashboard: {str(e)}")
+
+# Função de conexão
+def open_device():
+    try:
+        device = hid.device()
+        device.open(VENDOR_ID, PRODUCT_ID)
+        return device
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro conectando ao espectrômetro: {e}")
+
+# Função para enviar comando HID
+def send_hid_command(device, command, payload=None, read_response=True):
+    flags = 0x40 if not read_response else 0xC0
+    packet = [0x00, flags, 0x00]
+
+    payload = payload or []
+    length = len(command) + len(payload)
+    packet.append(length & 0xFF)
+    packet.append((length >> 8) & 0xFF)
+    packet += command + payload
+    packet += [0x00] * (64 - len(packet))  # Preenche até 64 bytes
+
+    device.write(packet)
+
+    if read_response:
+        response = device.read(64, timeout_ms=2000)
+        if not response:
+            raise HTTPException(status_code=408, detail="Timeout lendo resposta do espectrômetro.")
+        return response
+    return None
+
+import struct
+import numpy as np
+from typing import Tuple, List, Literal
+
+def parse_scan_data(
+    raw_bytes: bytes,
+    return_mode: Literal['reflectance', 'absorbance'] = 'reflectance'
+) -> Tuple[List[float], List[float]]:
+    """
+    Faz o parsing dos dados brutos recebidos do NIRscan Nano.
+    
+    Args:
+        raw_bytes (bytes): Dados recebidos do dispositivo.
+        return_mode (str): 'reflectance' (padrão) ou 'absorbance'.
+    
+    Returns:
+        Tuple contendo:
+            - wavelengths (List[float]): Lista de comprimentos de onda (nm).
+            - values (List[float]): Reflectância ou Absorbância.
+    """
+    if len(raw_bytes) < 64:
+        raise ValueError("Dados recebidos são muito curtos!")
+
+    # 1. Interpretar o cabeçalho fixo (baseado no Apêndice H)
+    magic, header_version, header_size, payload_size = struct.unpack_from("<IHHI", raw_bytes, offset=0)
+    
+    if magic != 0x454D4954:
+        raise ValueError(f"Magic Number inválido! Esperado 0x454D4954, recebido {hex(magic)}")
+    
+    # 2. Depois do header, tem alguns campos que podemos pular.
+    # O header todo é de header_size bytes (normalmente 512 bytes)
+
+    # Pular direto para os dados espectrais
+    data_offset = header_size
+    spectral_data = raw_bytes[data_offset:data_offset+payload_size]
+
+    # 3. Interpretar os espectros
+    # Primeiro, vamos interpretar o início do payload:
+    num_pixels = struct.unpack_from("<H", spectral_data, offset=0)[0]
+    offset = 2  # Avançar 2 bytes
+
+    wavelengths = []
+    reflectance = []
+
+    for _ in range(num_pixels):
+        # Cada ponto espectral é (float32 wavelength + float32 reflectance)
+        wavelength, refl = struct.unpack_from("<ff", spectral_data, offset)
+        wavelengths.append(wavelength)
+        reflectance.append(refl)
+        offset += 8  # Avançar 8 bytes (4 + 4)
+
+    if return_mode == 'absorbance':
+        # A absorbância é -log10(reflectância)
+        reflectance = np.array(reflectance)
+        absorbance = -np.log10(reflectance.clip(min=1e-10))  # Protege contra log(0)
+        return wavelengths, absorbance.tolist()
+    else:
+        return wavelengths, reflectance
+
+
+# Endpoint para iniciar a varredura
+@app.post("/start_scan")
+async def start_scan():
+    device = open_device()
+    send_hid_command(device, CMD_PERFORM_SCAN, payload=[0x00])  # Payload 0 = não salvar no SD
+    device.close()
+    return {"message": "Varredura iniciada."}
+
+# Endpoint para verificar status
+@app.get("/status")
+async def get_status():
+    device = open_device()
+    response = send_hid_command(device, CMD_READ_DEVICE_STATUS)
+    device.close()
+    scan_in_progress = bool(response[7] & 0x02)  # Bit 1 indica scan em andamento
+    return {"scan_in_progress": scan_in_progress}
+
+@app.get("/read_data")
+async def read_data(conversion: Literal['reflectance', 'absorbance'] = 'reflectance'):
+    device = open_device()
+
+    # 1. Pede o tamanho do arquivo
+    send_hid_command(device, CMD_FILE_GET_READSIZE, payload=SCAN_DATA_FILE_ID, read_response=False)
+    size_response = device.read(64, timeout_ms=2000)
+    if not size_response:
+        device.close()
+        raise HTTPException(status_code=408, detail="Timeout lendo tamanho do arquivo.")
+
+    data_size = int.from_bytes(size_response[7:9], byteorder="little")
+
+    # 2. Ler os dados
+    full_data = bytearray()
+    bytes_read = 0
+    while bytes_read < data_size:
+        send_hid_command(device, CMD_FILE_GET_DATA, payload=SCAN_DATA_FILE_ID, read_response=False)
+        chunk = device.read(64, timeout_ms=2000)
+        if not chunk:
+            device.close()
+            raise HTTPException(status_code=408, detail="Timeout lendo dados do espectro.")
+        full_data.extend(chunk[7:])  # Dados reais começam no byte 7
+        bytes_read += len(chunk) - 7
+
+    device.close()
+
+    # 3. Interpretar o conteúdo conforme o protocolo
+    if len(full_data) < 2:
+        raise HTTPException(status_code=500, detail="Dados recebidos são muito curtos para interpretação.")
+
+    # Lê o número de pixels
+    num_pixels = int.from_bytes(full_data[0:2], byteorder="little")
+    offset = 2
+
+    wavelengths = []
+    reflectances = []
+
+    for _ in range(num_pixels):
+        if offset + 8 > len(full_data):
+            break
+        wavelength, reflectance = struct.unpack_from("<ff", full_data, offset)
+        wavelengths.append(wavelength)
+        reflectances.append(reflectance)
+        offset += 8
+
+    if conversion == "reflectance":
+        processed = reflectances
+    elif conversion == "absorbance":
+        reflectances = np.array(reflectances)
+        processed = (-np.log10(reflectances.clip(min=1e-10))).tolist()
+    else:
+        raise HTTPException(status_code=400, detail="Conversão inválida. Use 'reflectance' ou 'absorbance'.")
+
+    return {
+        "message": "Dados de espectro lidos com sucesso!",
+        "wavelengths": wavelengths,
+        "values": processed,
+        "conversion": conversion,
+    }
+
+@app.get("/connect")
+async def connect_device():
+    try:
+        device = open_device()
+        device.close()
+        return {"connected": True}
+    except Exception as e:
+        return {"connected": False, "error": str(e)}
