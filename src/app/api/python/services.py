@@ -1,13 +1,20 @@
 from pathlib import Path
+import time
+from fastapi import HTTPException
 import numpy as np
 from scipy.signal import savgol_filter
 import base64
 import io
+import hid
 from io import BytesIO
 from datetime import datetime, timezone
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.linear_model import LinearRegression
+
+TELLSPEC_VENDOR_ID     = 0x0451  # 1105
+TELLSPEC_PRODUCT_ID    = 0x4200  # 16896
+TELLSPEC_MANUFACTURER  = "inno-spectra"
 
 def create_spectra(data):
     return {
@@ -152,6 +159,7 @@ SPECTRA_DIR = STATIC_DIR / "spectra"
 SPECTRA_DIR.mkdir(parents=True, exist_ok=True)  # Criar se não existir
 
 def save_image_from_base64(name: str, image_obj: dict) -> str:
+
     """Salva uma imagem Base64 na pasta static/spectra e retorna o caminho."""
     try:
         # Garantir que o diretório de destino exista
@@ -180,3 +188,4 @@ def save_image_from_base64(name: str, image_obj: dict) -> str:
     except Exception as e:
         print(f"Erro ao salvar imagem: {e}")
         return None
+    
