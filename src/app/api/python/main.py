@@ -7,6 +7,7 @@ from sklearn.svm import SVR
 from sklearn.cross_decomposition import PLSRegression
 from collections import Counter
 import pickle
+from math import log10
 import time
 import json
 import logging
@@ -33,24 +34,32 @@ prisma = Prisma()
 tellspec_vendor_id = None
 tellspec_product_id = None
 
+VENDOR_ID  = 0x0451 #1105
+PRODUCT_ID = 0x4200 #16896
+
+# “Standard” NNO USB/HID commands from the PDF (Table I-3 / H-1…H-2):
+CMD_SCAN_CFG_SELECT   = (0x02, 0x13)  # group=0x02, cmd=0x13
+CMD_PERFORM_SCAN      = (0x02, 0x18)  # group=0x00, cmd=0x0A
+CMD_GET_STATUS        = (0x04, 0x04)  # group=0x00, cmd=0x01
+
+# File-I/O commands (group=0x00):
+CMD_FILE_LIST_SIZE    = (0x00, 0x2B)  # read number of files
+CMD_FILE_LIST         = (0x00, 0x2C)  # read the file ID list
+CMD_FILE_GET_READSIZE = (0x00, 0x2D)  # read size of a given file ID
+CMD_FILE_GET_DATA     = (0x00, 0x2E)  # read chunks of that file
+
+# NNO “file ID” for storage in RAM is always 0x04; for SD it’s 0x07:
+NNO_FILE_IN_RAM = 0x04
+NNO_FILE_ON_SD  = 0x07
+
 # === Constantes de protocolo (exemplo, ajuste conforme seu espectrômetro) ===
 CMD_SCAN_GET_STATUS    = [0x02, 0x19]
-CMD_FILE_LIST_SIZE     = [0x00, 0x2B]
-CMD_FILE_LIST          = [0x00, 0x2C]
 CMD_EEPROM_TEST        = [0x00, 0x01]          # Requires 0 input, returns 1 byte
 CMD_TMP_TEST           = [0x01, 0x06]             # Requires 0 input, returns 1 byte
-TELLSPEC_VENDOR_ID     = 0x0451  # 1105
-TELLSPEC_PRODUCT_ID    = 0x4200  # 16896
 TELLSPEC_MANUFACTURER  = "inno-spectra"
 
-CMD_PERFORM_SCAN = (0x02, 0x18)
-CMD_GET_STATUS = (0x04, 0x04)
-CMD_FILE_GET_READSIZE = (0x00, 0x2D)
-CMD_FILE_GET_DATA = (0x00, 0x2E)
 NNO_FILE_SCAN_DATA = 4  # Verificar valor oficial conforme firmware
-
-VENDOR_ID = 0x0451
-PRODUCT_ID = 0x4200
+NNO_FILE_SCAN_DATA_FROM_SD = 0x07
 
 @app.on_event("startup")
 async def startup():
@@ -1006,6 +1015,17 @@ def open_device():
 
 
 def send_hid_command(device, group, command, data=b'', read=True, sequence=0):
+    """
+    Build a 64-byte HID packet:
+       [0]   = 0x00 (ID byte)
+       [1]   = 0xC0 if read else 0x40
+       [2]   = sequence
+       [3:5] = little-endian 16-bit length = 2 (cmd+group) + len(data)
+       [5]   = command byte
+       [6]   = group byte
+       [7:]  = data[]
+    Then write() it, and if read==True, read(64).
+    """
     packet = bytearray(64)
     packet[0] = 0x00  # ID Byte
     packet[1] = 0xC0 if read else 0x40
@@ -1023,95 +1043,125 @@ def send_hid_command(device, group, command, data=b'', read=True, sequence=0):
             raise HTTPException(status_code=408, detail="Timeout na leitura da resposta HID.")
         return resp
 
+@app.get("/api/get-device-configs")
+async def get_device_status():
+    device = open_device()
+    cfg_list_resp = send_hid_command(device, 0x02, 0x16)
+    print("Configurações disponíveis:", cfg_list_resp)
 
 @app.post("/api/read_data")
-async def read_data(req: RawSpectrumRequest = Body(...)):
-    device = open_device()
+async def read_data():
+    try:
+        # Abrir conexão HID com o NIRscan Nano
+        device = hid.device()
+        device.open(VENDOR_ID, PRODUCT_ID)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Não foi possível abrir dispositivo HID: {e}")
 
-    # Inicia varredura
-    send_hid_command(device, *CMD_PERFORM_SCAN, data=bytes([0x00]), read=False)
-    time.sleep(0.5)
-
-    if req.conversion == "absorbance":
-        # O dispositivo SEMPRE retorna reflectância.
-        # A=−log 10(R)
-        arr = np.array(values)
-        values = (-np.log10(arr.clip(min=1e-10))).tolist()
-
-
-    # Aguardar término (poll de status)
-    for _ in range(50):
+    try:
+        # 1. Selecionar configuração de varredura (índice 0 ou 1)
+        config_index = 0  # Alterar se houver outra configuração desejada
+        # Envia NNO_CMD_SCAN_SET_ACT_CFG (group 0x02, cmd 0x24) com 1 byte de índice:contentReference[oaicite:11]{index=11}.
+        report = bytes([0x00, 0x02, 0x24, config_index])
+        device.write(report)
+        # Dar tempo para geração de padrões (SDRAM) antes de escanear
         time.sleep(1.0)
-        status = send_hid_command(device, *CMD_GET_STATUS)
-        if status[7] & 0x02 == 0:
-            break
-    else:
+
+        # 2. Executar escaneamento
+        store_to_sd = False
+        param = 0x1 if store_to_sd else 0x0
+        # Envia NNO_CMD_PERFORM_SCAN (group 0x02, cmd 0x18) com 1 byte de parâmetro (SD ou RAM):contentReference[oaicite:12]{index=12}.
+        report = bytes([0x00, 0x02, 0x18, param])
+        device.write(report)
+
+        # 3. Aguardar conclusão da varredura: ler NNO_CMD_READ_DEVICE_STATUS (group 0x01, cmd 0x00):contentReference[oaicite:13]{index=13}.
+        # Verifica o bit 1 (0x02) que indica "scan in progress".
+        while True:
+            # Formato HID: enviar comando READ_DEVICE_STATUS. Não há payload.
+            status_report = bytes([0x00, 0x01, 0x00])
+            device.write(status_report)
+            response = device.read(64)
+            if not response:
+                raise HTTPException(status_code=500, detail="Falha ao ler status do dispositivo")
+            status = response[0]  # ou parsear conforme protocolo; assume byte0 é status
+            # Se o bit 1 estiver zerado, a varredura terminou
+            if (status & 0x02) == 0:
+                break
+            time.sleep(0.1)
+
+        # 4. Ler tamanho dos dados: CMD_FILE_GET_READSIZE (group 0x00, cmd 0x2D) com file_id NNO_FILE_SCAN_DATA (0x04):contentReference[oaicite:14]{index=14}.
+        NNO_FILE_SCAN_DATA = 0x04
+        report = bytes([0x00, 0x00, 0x2D, NNO_FILE_SCAN_DATA])
+        device.write(report)
+        size_resp = device.read(64)
+        if not size_resp or len(size_resp) < 4:
+            raise HTTPException(status_code=500, detail="Não foi possível obter tamanho dos dados de varredura")
+        data_size = int.from_bytes(size_resp[0:4], byteorder='little')
+
+        # 5. Ler todos os bytes de dados: CMD_FILE_GET_DATA (group 0x00, cmd 0x2E):contentReference[oaicite:15]{index=15}.
+        report = bytes([0x00, 0x00, 0x2E])
+        device.write(report)
+        raw_bytes = bytearray()
+        bytes_remaining = data_size
+        while bytes_remaining > 0:
+            packet = device.read(64)
+            if not packet:
+                break
+            # Ignorar possíveis bytes de cabeçalho no início de cada pacote.
+            # Muitos exemplos usam packet[4:] ou [3:], mas se for retornado apenas dados, ajuste conforme necessário.
+            raw_bytes.extend(packet[4: min(len(packet), 4 + bytes_remaining)])
+            bytes_remaining = data_size - len(raw_bytes)
+
+        if len(raw_bytes) < data_size:
+            raise HTTPException(status_code=500, detail="Dados de varredura incompletos")
+
+        # 6. Interpretar pares <float32, float32>
+        floats = np.frombuffer(raw_bytes, dtype='<f4')
+        if len(floats) % 2 != 0:
+            raise HTTPException(status_code=500, detail="Formato de dados inválido")
+        wavelengths = floats[0::2].tolist()
+        intensities = floats[1::2].tolist()
+
+        # 7. Converter para absorbância: A = -log10(intensity)
+        # Tratar valores não-positivos para evitar -inf.
+        absorbances = []
+        for I in intensities:
+            if I <= 0:
+                absorbances.append(None)
+            else:
+                absorbances.append(-log10(I))
+
+        # 8. Salvar dados em disco
+        timestamp = int(time.time())
+        bin_path = f"scan_{timestamp}.bin"
+        json_path = f"scan_{timestamp}.json"
+        with open(bin_path, "wb") as f_bin:
+            f_bin.write(raw_bytes)
+        with open(json_path, "w") as f_json:
+            json.dump({
+                "wavelengths": wavelengths,
+                "intensities": intensities,
+                "absorbances": absorbances
+            }, f_json, indent=2)
+
+        # 9. Persistir no banco de dados via Prisma ORM (exemplo genérico)
+        prisma = Prisma()
+        await prisma.connect()
+        # Supondo um modelo Prisma como ScanData com campos Json ou equivalentes
+        await prisma.scanData.create(data={
+            "timestamp": timestamp,
+            "wavelengths": wavelengths,
+            "intensities": intensities,
+            "absorbances": absorbances
+        })
+        await prisma.disconnect()
+
+        # 10. Retornar resultado ao cliente
+        return {
+            "wavelengths": wavelengths,
+            "intensities": intensities,
+            "absorbances": absorbances
+        }
+
+    finally:
         device.close()
-        raise HTTPException(status_code=504, detail="Timeout aguardando término da varredura.")
-
-    # CMD_FILE_LIST_SIZE (grupo 0x00, comando 0x2B)
-    size_resp = send_hid_command(device, 0x00, 0x2B, data=bytes([0x00]))
-    n_files = int.from_bytes(size_resp[7:11], "little")
-
-    # CMD_FILE_LIST (grupo 0x00, comando 0x2C)
-    list_resp = send_hid_command(device, 0x00, 0x2C, data=bytes([0x00]))
-    file_ids = list_resp[7:7 + n_files]
-
-    NNO_FILE_SCAN_DATA = file_ids[-1:]
-
-    # Pega tamanho dos dados espectrais
-    size_resp = send_hid_command(device, *CMD_FILE_GET_READSIZE, data=bytes(NNO_FILE_SCAN_DATA))
-    data_size = int.from_bytes(size_resp[7:11], "little")
-
-    print("Tamanho esperado do espectro:", data_size)
-    
-    # Lê os dados em blocos
-    full_data = bytearray()
-    while len(full_data) < data_size:
-        chunk = send_hid_command(device, *CMD_FILE_GET_DATA)
-        full_data.extend(chunk[7:])
-        print("Chunk recebido:", chunk)
-
-    print("Bytes recebidos:", len(full_data))
-
-    print("Status final:", status)
-    print("Tamanho do espectro:", data_size)
-    print("Pacotes lidos:", len(full_data))
-    print("Primeiros 16 bytes:", full_data[:16])
-
-
-    device.close()
-
-    # Interpreta os dados como pares float32
-    num_points = len(full_data) // 8
-    wavelengths = []
-    values = []
-    for i in range(num_points):
-        offset = i * 8
-        wl, val = struct.unpack_from('<ff', full_data, offset)
-        wavelengths.append(wl)
-        values.append(val)
-
-    # Salva no banco como RawSpectrum
-    raw = await prisma.rawspectrum.create(data={
-        "data": datetime.fromisoformat(req.data),
-        "wavelengths": json.dumps(wavelengths),
-        "intensity": json.dumps(values),
-        "name": req.name,
-        "local": req.local,
-        "varietyId": req.varietyId,
-        "conversion": req.conversion,
-    })
-    raw_id = raw.id
-
-    # Salva no disco
-    os.makedirs("src/data/tellspec", exist_ok=True)
-    with open(f"src/data/tellspec/{raw_id}.json", "w") as f:
-        json.dump({"wavelengths": wavelengths, "intensity": values}, f)
-
-    return {
-        "ok": True,
-        "rawId": raw_id,
-        "wavelengths": wavelengths,
-        "values": values
-    }
