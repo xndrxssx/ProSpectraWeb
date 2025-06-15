@@ -144,7 +144,7 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
                             <Link href="/edit-variety" className="text-inherit">Editar variedade</Link>
                           </SidebarMenuSubItem>
                           <SidebarMenuSubItem className="hover:bg-white  rounded-md p-1 hover:text-black transition-all duration-350 ease-in-out">
-                            <Link href="/edit-model" className="text-inherit">Treinar modelo preditivo</Link>
+                            <Link href="/train-model" className="text-inherit">Treinar modelo preditivo</Link>
                           </SidebarMenuSubItem>
                           <SidebarMenuSubItem className="hover:bg-white  rounded-md p-1 hover:text-black transition-all duration-350 ease-in-out">
                             <Link href="/upload-features" className="text-inherit">Dados para testes</Link>
