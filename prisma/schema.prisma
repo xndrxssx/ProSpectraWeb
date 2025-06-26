@@ -84,4 +84,5 @@ model Predictions {
   spectral_data_id Int
   prediction  Float
   createdAt   DateTime  @default(now())
+  attribute String ?
 }

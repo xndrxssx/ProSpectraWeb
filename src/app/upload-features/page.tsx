@@ -1,18 +1,21 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import ExcelJS from "exceljs";
 import CustomSidebar from "@/components/Sidebar";
 import withAuth from "@/components/withAuth";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useDropzone } from "react-dropzone";
+import { useDropzone, FileRejection } from "react-dropzone";
+import { UploadCloud, CheckCircle2, XCircle, File as FileIcon, LoaderCircle } from "lucide-react";
 import Select, { StylesConfig, Theme } from "react-select";
 
 interface Option {
   label: string;
   value: string;
 }
+
+type UploadStatus = 'idle' | 'processing' | 'ready' | 'submitting' | 'success' | 'error';
 
 function SaveWavelengths() {
   const [dataSet, setDataSet] = useState("");
@@ -31,94 +34,90 @@ function SaveWavelengths() {
   const [erro, setErro] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
 
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+
   useEffect(() => {
     console.log("Wavelengths atualizado:", wavelengths);
     console.log("X Data atualizado:", xData);
   }, [wavelengths, xData]);
 
-  const handleFile = async (selectedFile: File) => {
-    if (selectedFile) {
-      const reader = new FileReader();
-  
-      reader.onload = async () => {
-        const buffer = reader.result as ArrayBuffer;
-        const workbook = new ExcelJS.Workbook();
-  
-        try {
-          await workbook.xlsx.load(buffer);
-  
-          const worksheet = workbook.getWorksheet(1);
-          if (!worksheet) {
-            toast.error("Planilha não encontrada.");
-            return;
-          }
-          toast.success("Planilha carregada com sucesso!");
-  
-          // Process the wavelengths (first row)
-          const firstRow = worksheet.getRow(1);
-          if (firstRow && Array.isArray(firstRow.values)) {
-            const wavelengthsData = firstRow.values
-              .slice(1) // Ignore the first value (label/index)
-              .map(val => Number(val))
-              .filter(val => !isNaN(val)); // Filter invalid values
-  
-            if (wavelengthsData.length > 0) {
-              setWavelengths(wavelengthsData);
-              setErro(null); // Clear previous errors
-            } else {
-              toast.error("Valores da primeira linha são inválidos.");
-              return;
-            }
-  
-            // Process the X data (remaining rows)
-            const xDataArray: number[][] = [];
-            worksheet.eachRow((row, rowNumber) => {
-              if (rowNumber > 1) { // Skip the first row (wavelengths)
-                const rowValues = row.values as any[];
-                const rowData = rowValues
-                  .slice(1) // Ignore the first value (label/index)
-                  .map(val => Number(val))
-                  .filter(val => !isNaN(val)); // Filter invalid values
-  
-                if (rowData.length > 0) {
-                  xDataArray.push(rowData);
-                } else {
-                  console.warn(`Linha ${rowNumber} tem dados inválidos, ignorando...`);
-                }
-              }
-            });
-  
-            setXData(xDataArray);
-          } else {
-            setErro("Primeira linha não encontrada ou inválida.");
-          }
-        } catch (error) {
-          toast.error("Erro ao processar o arquivo.");
-          console.error(error);
+  const processFile = async (selectedFile: File) => {
+    if (!selectedFile) return;
+
+    setFile(selectedFile);
+    setUploadStatus('processing'); // <- Informa que o processamento começou
+    setFeedbackMessage('Lendo arquivo Excel...');
+
+    const reader = new FileReader();
+    reader.readAsArrayBuffer(selectedFile);
+
+    reader.onload = async () => {
+      const buffer = reader.result as ArrayBuffer;
+      const workbook = new ExcelJS.Workbook();
+      try {
+        await workbook.xlsx.load(buffer);
+        const worksheet = workbook.getWorksheet(1);
+        if (!worksheet) {
+          throw new Error("Planilha não encontrada no arquivo.");
         }
-      };
-  
-      reader.readAsArrayBuffer(selectedFile);
+
+        const firstRow = worksheet.getRow(1);
+        if (!firstRow || !Array.isArray(firstRow.values)) {
+            throw new Error("Primeira linha (wavelengths) não encontrada ou inválida.");
+        }
+        
+        const wavelengthsData = (firstRow.values as any[]).slice(1).map(Number).filter(v => !isNaN(v));
+        if (wavelengthsData.length === 0) {
+            throw new Error("Nenhum comprimento de onda válido encontrado na primeira linha.");
+        }
+        setWavelengths(wavelengthsData);
+
+        const xDataArray: number[][] = [];
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber > 1) {
+                const rowData = (row.values as any[]).slice(1).map(Number).filter(v => !isNaN(v));
+                if (rowData.length > 0) xDataArray.push(rowData);
+            }
+        });
+        setXData(xDataArray);
+
+        // Sucesso no processamento
+        setUploadStatus('ready');
+        setFeedbackMessage('Arquivo processado. Pronto para salvar.');
+
+      } catch (error: any) {
+        console.error(error);
+        setUploadStatus('error');
+        setFeedbackMessage(error.message || 'Erro ao processar o arquivo.');
+        setFile(null); // Limpa o arquivo em caso de erro
+      }
+    };
+    reader.onerror = () => {
+        setUploadStatus('error');
+        setFeedbackMessage('Não foi possível ler o arquivo.');
     }
-  };  
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dataSet || wavelengths.length === 0 || xData.length === 0) {
-      toast.error("Preencha todos os campos e carregue um arquivo.");
+    if (uploadStatus !== 'ready' || !file) {
+      toast.error("Por favor, carregue e processe um arquivo válido primeiro.");
       return;
     }
 
-    const payload: any = {
+    setUploadStatus('submitting');
+    setFeedbackMessage('Salvando dados no servidor...');
+
+    const payload = {
       dataset: dataSet,
-      wavelengths: wavelengths.map(Number),
-      X: xData.map(row => row.map(Number)),
-      filter,
+      wavelengths: wavelengths,
+      X: xData,
+      filter: filter,
       sgParams
     };
-
-    if (filter === "SG" && sgParams) {
-      payload.sgParams = sgParams;
+    if (filter==="SG" && sgParams){
+      payload.sgParams=sgParams
     }
 
     console.log("Payload a ser enviado:", payload);
@@ -131,32 +130,71 @@ function SaveWavelengths() {
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error("Erro ao salvar os dados.");
-      toast.success("Dados salvos com sucesso!");
-      setDataSet("");
-      setWavelengths([]);
-      setXData([]);
-      setFilter("Selecionar filtro");
-    } catch (error) {
-      toast.error("Erro ao salvar os dados.");
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.detail || `Erro do servidor: ${response.statusText}`);
+      }
+      toast.success('Features criadas!')
+      setUploadStatus('success');
+      setFeedbackMessage('Dados salvos com sucesso!');
+      handleReset();
+    } catch (error: any) {
+      setUploadStatus('error');
+      setFeedbackMessage(error.message || "Erro ao salvar os dados.");
       console.error(error);
     }
   };
 
-  // Usando o React Dropzone
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: { 
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [],
-      "application/vnd.ms-excel": []
-    },
-    onDrop: (acceptedFiles) => {
-      const selectedFile = acceptedFiles[0];
-      if (selectedFile) {
-        setFile(selectedFile);
-        handleFile(selectedFile); // <- Você cria essa função baseada no que hoje está no seu handleFileChange
-      }
+  const onDrop = useCallback((acceptedFiles: File[], fileRejections: FileRejection[]) => {
+    // Reseta o estado para um novo upload 
+    
+    if (fileRejections.length > 0) {
+        setUploadStatus('error');
+        setFeedbackMessage('Arquivo inválido. Verifique o tipo ou tamanho.');
+        return;
     }
-  });
+    if (acceptedFiles.length > 0) {
+      processFile(acceptedFiles[0]);
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, maxFiles: 1 });
+
+  const renderDropzoneContent = () => {
+    switch (uploadStatus) {
+      case 'processing':
+        return <><LoaderCircle className="animate-spin h-8 w-8 text-gray-500 mb-2" /><p className="font-semibold">{feedbackMessage}</p></>;
+      case 'submitting':
+        return <><LoaderCircle className="animate-spin h-8 w-8 text-blue-500 mb-2" /><p className="font-semibold">{feedbackMessage}</p></>;
+      case 'ready':
+        return <><CheckCircle2 className="h-8 w-8 text-green-500 mb-2" /><p className="font-semibold">{feedbackMessage}</p><p className="text-sm text-gray-500">{file?.name}</p></>;
+      case 'success':
+        return <><CheckCircle2 className="h-8 w-8 text-green-600 mb-2" /><p className="font-semibold">{feedbackMessage}</p><p className="text-sm text-gray-500">{file?.name}</p></>;
+      case 'error':
+        return <><XCircle className="h-8 w-8 text-red-600 mb-2" /><p className="font-semibold text-red-700">{feedbackMessage}</p></>;
+      case 'idle':
+      default:
+        return (
+          <>
+            <UploadCloud className="h-10 w-10 text-gray-400 mb-2" />
+            <p className="font-semibold">{isDragActive ? 'Solte o arquivo aqui...' : 'Arraste e solte o arquivo ou clique para selecionar'}</p>
+            <p className="text-xs text-gray-500">Apenas arquivos .xlsx</p>
+          </>
+        );
+    }
+  };
+  
+  // Função para resetar tudo
+  const handleReset = () => {
+      setDataSet("");
+      setWavelengths([]);
+      setXData([]);
+      setFilter("Selecionar filtro");
+      setFile(null);
+      setUploadStatus('idle');
+      setFeedbackMessage('');
+  };
 
     const customStyles: StylesConfig<Option, false> = {
       control: (base) => ({ ...base, borderRadius: 8, padding: "0.25rem" }),
@@ -177,41 +215,32 @@ function SaveWavelengths() {
     <div className="min-h-screen w-full flex bg-[#eaeaea] text-gray-900">
       <CustomSidebar />
       <ToastContainer />
-      <main className="flex-1 flex items-center justify-center">
-        <div className="bg-white/10 w-3/5 backdrop-blur-sm rounded-lg p-16 shadow-lg">
+      <main className="flex-1 flex justify-center mt-10">
+        <div className="bg-white/10 w-full max-w-2xl max-h-full">
           <h1 className="text-2xl font-bold mb-4 text-center">Salvar Comprimentos de Onda</h1>
 
           {erro && <div className="text-red-500 text-center mb-4">{erro}</div>}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Input de Nome do Atributo */}
             <div>
-              <label htmlFor="atributoNome" className="block text-sm font-medium mb-2">
-                Nome do Atributo:
-              </label>
-              <input
-                id="atributoNome"
-                value={dataSet}
-                onChange={(e) => setDataSet(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-lg"
-                placeholder="Digite o nome do atributo"
-                required
-              />
+              <label htmlFor="atributoNome" className="block text-sm font-medium mb-2">Nome do Conjunto de Dados:</label>
+              <input id="atributoNome" value={dataSet} onChange={(e) => setDataSet(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" placeholder="Ex: Uvas Thompson Safra 2024" required />
             </div>
 
+            {/* 7. ÁREA DO DROPZONE ATUALIZADA */}
             <div>
               <label className="block text-sm font-medium mb-2">Carregar Arquivo de Dados</label>
-              {/* Usando o React Dropzone */}
-              <div
-                  {...getRootProps()}
-                  className="text-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
-                >
-                  <input {...getInputProps()} />
-                  {isDragActive ? (
-                    <p>Solte o arquivo aqui...</p>
-                  ) : (
-                    <p>Arraste e solte o arquivo aqui, ou clique para selecionar.</p>
-                  )}
-                </div>
+              <div {...getRootProps()}
+                className={`text-center w-full p-6 flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer transition-colors duration-200 
+                  ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}
+                  ${uploadStatus === 'ready' ? 'border-green-400 bg-green-50' : ''}
+                  ${uploadStatus === 'success' ? 'border-green-600 bg-green-100' : ''}
+                  ${uploadStatus === 'error' ? 'border-red-500 bg-red-50' : ''}
+                `}>
+                <input {...getInputProps()} />
+                {renderDropzoneContent()}
+              </div>
             </div>
 
             <div>
@@ -262,15 +291,18 @@ function SaveWavelengths() {
             )}
 
             <div className="text-center">
-              <button
-                type="submit"
-                className="w-full bg-[#165a16] text-white py-2 px-4 rounded-lg hover:bg-[#208120] transition-all duration-300 ease-in-out"
-              >
-                Salvar Dados
-              </button>
+              {uploadStatus === 'success' || uploadStatus === 'error' ? (
+                <button type="button" onClick={handleReset} className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                  Enviar Novo Arquivo
+                </button>
+              ) : (
+                <button type="submit" disabled={uploadStatus !== 'ready'} className="w-full bg-[#165a16] text-white py-2 px-4 rounded-lg hover:bg-[#208120] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
+                  Salvar Dados
+                </button>
+              )}
             </div>
           </form>
-        </div>
+          </div>
       </main>
     </div>
   );

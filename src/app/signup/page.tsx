@@ -10,7 +10,7 @@ export default function SignUp() {
     password: "",
     confirmPassword: "",
     terms: false,
-    userType: "produtor",
+    userType: "prod",
   });
 
   const [errorMessage, setErrorMessage] = useState("");
@@ -64,7 +64,7 @@ export default function SignUp() {
           password: "",
           confirmPassword: "",
           terms: false,
-          userType: "produtor",
+          userType: "prod",
         });
 
         // Exibir o popup de sucesso
@@ -176,8 +176,8 @@ export default function SignUp() {
                       type="radio"
                       id="userType"
                       name="userType"
-                      value="produtor"
-                      checked={formData.userType === "produtor"}
+                      value="prod"
+                      checked={formData.userType === "prod"}
                       onChange={handleChange}
                     />
                     <span>Produtor</span>
@@ -187,8 +187,8 @@ export default function SignUp() {
                       type="radio"
                       id="userType"
                       name="userType"
-                      value="administrador"
-                      checked={formData.userType === "administrador"}
+                      value="admin"
+                      checked={formData.userType === "admin"}
                       onChange={handleChange}
                     />
                     <span>Administrador</span>

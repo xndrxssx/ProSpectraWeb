@@ -1,28 +1,27 @@
-from sklearn.linear_model import LinearRegression
-from sklearn.decomposition import PCA
-from sklearn.neural_network import MLPRegressor
-from .services import apply_msc, apply_snv, apply_sg, plot_filtered_data, calculate_metrics, save_image_from_base64, save_regression_comparison_plot, plot_test_predictions
-from .models import SpectraData, ModelData, ModelResponse, SpectrumResponse, SpectrumData, TargetData, TargetResponse, XResponse, YResponse, ApplyModelRequest, SavePredictionRequest, PredictionResponse
-from sklearn.svm import SVR
-from sklearn.cross_decomposition import PLSRegression
-from collections import Counter
-import pickle
+import hid
 import time
 import json
+import pickle
 import logging
-from datetime import datetime, timezone
 import numpy as np
+from typing import List
+from pathlib import Path
+from prisma import Prisma
+from sklearn.svm import SVR
+from sklearn.decomposition import PCA
+from typing import Tuple, List, Literal
+from sklearn.pipeline import make_pipeline
+from sklearn.neural_network import MLPRegressor
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression
+from datetime import datetime, timezone, timedelta
 from fastapi.middleware.cors import CORSMiddleware
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import make_pipeline
+from sklearn.cross_decomposition import PLSRegression
 from sklearn.model_selection import cross_val_predict
-from pathlib import Path
-from typing import List
-from fastapi import File, HTTPException,FastAPI, Query, UploadFile
-from prisma import Prisma
-import hid
-from typing import Tuple, List, Literal
+from fastapi import File, HTTPException,FastAPI, Query, UploadFile, Depends
+from .services import apply_msc, apply_snv, apply_sg, plot_filtered_data, calculate_metrics, get_image_url, save_regression_comparison_plot, plot_test_predictions
+from .models import SpectraData, ModelData, ModelResponse, SpectrumResponse, SpectrumData, TargetData, TargetResponse, XResponse, YResponse, ApplyModelRequest, SavePredictionRequest, PredictionResponse, User
 
 app = FastAPI()
 prisma = Prisma()
@@ -824,6 +823,7 @@ async def save_prediction(request: SavePredictionRequest):
             "spectral_data_id": request.spectral_data_id,
             "prediction": request.prediction,  # Corrigido para Float diretamente
             "createdAt": datetime.now(timezone.utc),
+            "attribute": request.str
         }
     )
 
@@ -888,100 +888,292 @@ async def list_predictions():
 @app.get("/api/dashboard/")
 async def get_dashboard_data():
     try:
-        print("Buscando predições...")
-        predictions = await prisma.predictions.find_many()
-        if not predictions:
-            raise HTTPException(status_code=404, detail="Nenhuma predição encontrada")
+        now = datetime.now(timezone.utc)
+        thirty_days_ago = now - timedelta(days=30)
+        sixty_days_ago = now - timedelta(days=60)
         
-        # Converta as predições para um formato serializável
-        predictions_data = [dict(prediction) for prediction in predictions]
-        
-        # Converta os campos datetime para string
-        for prediction in predictions_data:
-            for key, value in prediction.items():
-                if isinstance(value, datetime):
-                    prediction[key] = value.isoformat()
-
-        predictions_per_day = Counter(
-        datetime.fromisoformat(pred["createdAt"]).date().isoformat() for pred in predictions_data
+        # --- BUSCA DE DADOS PRIMÁRIOS ---
+        all_models = await prisma.predictivemodel.find_many(order={"createdAt": "asc"})
+        all_predictions = await prisma.predictions.find_many(
+            order={"createdAt": "asc"}
         )
 
-        report_data = {
-            "total_predictions": len(predictions_data),
-            "predictions_by_day": predictions_per_day,
-            "last_prediction": predictions_data[-1] if predictions_data else None,
+        # --- PROCESSAMENTO DOS DADOS ---
+        models_in_last_month = [m for m in all_models if m.createdAt > thirty_days_ago]
+        predictions_in_last_month = [p for p in all_predictions if p.createdAt > thirty_days_ago]
+        
+        # --- LÓGICA PARA VISÃO DO ADMIN ---
+        admin_view = {
+            "stats": {
+                "trained_models": {"value": "0", "description": "Nenhum modelo treinado", "trend": "+0 no último mês"},
+                "average_accuracy": {"value": "N/A", "description": "Sem dados de modelo", "trend": ""},
+                "average_execution_time": {"value": "N/A", "description": "Sem dados de modelo", "trend": ""}
+            },
+            "charts": {"model_performance": [], "execution_time": []},
+            "tables": {"model_metrics": []}
+        }
+        if all_models:
+            test_metrics = [m.metrics.get('test') for m in all_models if m.metrics and m.metrics.get('test')]
+            
+            # 1. Stats Cards
+            total_models_trained = len(all_models)
+            last_trained_model = all_models[-1]
+            
+            r2_scores = [m.get('R²', 0) for m in test_metrics if m.get('R²')]
+            avg_r2 = np.mean(r2_scores) if r2_scores else 0
+            best_r2_model_data = max(all_models, key=lambda m: m.metrics.get('test', {}).get('R²', -1))
+            
+            exec_times = [m.metrics.get('time', {}).get('execution_time') for m in all_models if m.metrics.get('time', {}).get('execution_time') is not None]
+            avg_exec_time = np.mean(exec_times) if exec_times else 0
+            fastest_model_data = min(all_models, key=lambda m: m.metrics.get('time', {}).get('execution_time', float('inf')))
+
+            models_current_period = [m for m in all_models if m.createdAt> thirty_days_ago]
+            models_previous_period = [m for m in all_models if sixty_days_ago< m.createdAt]
+
+            r2_current = [m.metrics.get('test', {}).get('R²', 0) for m in models_current_period]
+            avg_r2_current = np.mean(r2_current) if r2_current else 0
+
+            r2_previous = [m.metrics.get('test', {}).get('R²', 0) for m in models_previous_period]
+            avg_r2_previous = np.mean(r2_previous) if r2_previous else 0
+
+            trend_str_r2 = ""
+            if avg_r2_current > 0 and avg_r2_previous>0:
+                difference = ((avg_r2_current-avg_r2_previous) /avg_r2_previous)
+                trend_str_r2=f"{'+' if difference>0 else ''}{difference:.1%}"
+            
+            time_current = [m.metrics.get('execution_time', 0) for m in models_current_period]
+            avg_time_current = np.mean(time_current) if time_current else 0
+
+            time_previous = [m.metrics.get('execution_time', 0) for m in models_previous_period]
+            avg_time_previous = np.mean(time_previous) if time_previous else 0
+
+            trend_str_time = ""
+            if avg_time_current > 0 and avg_time_previous>0:
+                difference = ((avg_time_current-avg_time_previous) /avg_time_previous)
+                trend_str_time=f"{'+' if difference>0 else ''}{difference:.1%}"
+
+            admin_view["stats"] = {
+                "trained_models": {
+                    "value": str(total_models_trained),
+                    "description": f"Último: {last_trained_model.model_name} ({last_trained_model.createdAt.strftime('%d/%m/%Y')})",
+                    "trend": f"+{len(models_in_last_month)} no último mês"
+                },
+                "average_accuracy": {
+                    "value": f"{avg_r2:.1%}",
+                    "description": f"Melhor: {best_r2_model_data.model_name} ({best_r2_model_data.metrics.get('test', {}).get('R²', 0):.2f})",
+                    "trend": f"{trend_str_r2} nos últimos 30 dias" if trend_str_r2 else ""
+                },
+                "average_execution_time": {
+                    "value": f"{avg_exec_time:.2f}s",
+                    "description": f"Mais rápido: {fastest_model_data.model_name} ({fastest_model_data.metrics.get('time', {}).get('execution_time', 0):.2f}s)",
+                    "trend": f"{trend_str_time} nos últimos 30 dias" if trend_str_time else "" 
+                }
+            }
+            
+            # 2. Dados para Gráficos e Tabelas
+            admin_view["charts"] = {
+                "model_performance": [{
+                    "model": f"{m.model_name} ({m.attribute})",
+                    "r2": m.metrics.get('test', {}).get('R²', 0),
+                    "mae": m.metrics.get('test', {}).get('MAE', 0),
+                    "rmse": m.metrics.get('test', {}).get('RMSE', 0),
+                } for m in all_models],
+                "execution_time": [{
+                    "model": f"{m.model_name} ({m.attribute})",
+                    "time": m.metrics.get('time', {}).get('execution_time', 0)
+                } for m in all_models]
+            }
+            admin_view["tables"] = {
+                "model_metrics": [{
+                    "model": m.model_name,
+                    "attribute": m.attribute,
+                    "train": m.metrics.get('train', {}),
+                    "validation": m.metrics.get('cv', {}),
+                    "test": m.metrics.get('test', {})
+                } for m in all_models]
+            }
+
+        # --- LÓGICA PARA VISÃO DO PRODUTOR ---
+        producer_view = {
+            "stats": {
+                "total_predictions": {"value": "0", "description": "Nenhuma predição ainda", "trend": "+0 no último mês"},
+                "average_precision": {"value": "N/A", "description": "Aguardando predições", "trend": ""},
+                "average_error": {"value": "N/A", "description": "Aguardando predições", "trend": ""}
+            },
+            "tables": {
+                "prediction_history": []
+            },
+            "charts": {
+                "prediction_trend": []
+            }
+        }
+        if all_predictions:
+            # 1. Stats Cards
+            predictions_in_last_month = [p for p in all_predictions if p.createdAt > thirty_days_ago]
+            total_predictions = len(all_predictions)
+            last_prediction = all_predictions[-1]
+
+            # Usando métricas dos modelos como proxy para precisão e erro
+            avg_precision_proxy = np.mean([m.metrics.get('test', {}).get('R²', 0) for m in all_models]) if all_models else 0
+            avg_error_proxy = np.mean([m.metrics.get('test', {}).get('MAE', 0) for m in all_models]) if all_models else 0
+            best_precision_model_proxy = max(all_models, key=lambda m: m.metrics.get('test', {}).get('R²', -1)) if all_models else None
+
+            r2_current = [m.metrics.get('test', {}).get('R²', 0) for m in models_current_period]
+            avg_r2_current = np.mean(r2_current) if r2_current else 0
+
+            r2_previous = [m.metrics.get('test', {}).get('R²', 0) for m in models_previous_period]
+            avg_r2_previous = np.mean(r2_previous) if r2_previous else 0
+
+            trend_str_r2 = ""
+            if avg_r2_current > 0 and avg_r2_previous>0:
+                difference = ((avg_r2_current-avg_r2_previous) /avg_r2_previous)
+                trend_str_r2=f"{'+' if difference>0 else ''}{difference:.1%}"
+            
+            mae_current = [m.metrics.get('test', {}).get('MAE', 0) for m in models_current_period]
+            avg_mae_current = np.mean(mae_current) if mae_current else 0
+
+            mae_previous = [m.metrics.get('test', {}).get('MAE', 0) for m in models_previous_period]
+            avg_mae_previous = np.mean(mae_previous) if mae_previous else 0
+
+            lowest_error_model_proxy = min(all_models, key=lambda m: m.metrics.get('test', {}).get('MAE', float('inf')), default=None)
+
+            trend_str_mae = ""
+            if avg_mae_current > 0 and avg_mae_previous > 0:
+                difference_mae = ((avg_mae_current - avg_mae_previous) / avg_mae_previous)
+                trend_str_mae = f"{'+' if difference_mae > 0 else ''}{difference_mae:.1%}"
+
+            producer_view["stats"] = {
+                "total_predictions": {
+                    "value": str(total_predictions),
+                    "description": f"Última: {last_prediction.prediction:.2f} ({last_prediction.createdAt.strftime('%d/%m/%y %H:%M')})",
+                    "trend": f"+{len(predictions_in_last_month)} no último mês"
+                },
+                "average_precision": {
+                    "value": f"{avg_precision_proxy:.1%}",
+                    "description": (
+                        f"Melhor modelo: {best_precision_model_proxy.model_name} ({best_precision_model_proxy.metrics.get('test', {}).get('R²', 0):.2f})" 
+                        if best_precision_model_proxy 
+                        else "Melhor modelo: N/A"
+                    ),
+                    "trend": f"{trend_str_r2} nos últimos 30 dias" if trend_str_r2 else ""
+                },
+                "average_error": {
+                    "value": f"{avg_error_proxy:.2f}",
+                    "description": (
+                        f"Menor erro: {lowest_error_model_proxy.model_name} ({lowest_error_model_proxy.metrics.get('test', {}).get('MAE', 0):.2f})"
+                        if lowest_error_model_proxy
+                        else "Menor erro: N/A"
+                    ),
+                    "trend": f"{trend_str_mae} desde o último mês" if trend_str_mae else ""
+                }
+            }
+
+            # 2. Dados para Tabelas e Gráficos
+            producer_view["tables"] = {
+                "prediction_history": [{
+                    "id": p.id,
+                    "name": p.name,
+                    "model": p.model_name,
+                    "value": p.prediction,
+                    "timestamp": p.createdAt.isoformat(),
+                } for p in reversed(all_predictions[-10:])] # 10 mais recentes
+            }
+
+            models_metrics_map = {m.model_name: m.metrics.get('test', {}) for m in all_models}
+
+            predictions_by_day = {}
+            for p in all_predictions:
+                date_str = p.createdAt.strftime('%Y-%m-%d')
+                if date_str not in predictions_by_day:
+                    predictions_by_day[date_str] = []
+                predictions_by_day[date_str].append(p)
+
+            prediction_trend_data = []
+            for date, preds in sorted(predictions_by_day.items()):
+                # Calcula a precisão média (R²) para as predições daquele dia
+                daily_accuracies = [models_metrics_map.get(p.model_name, {}).get('R²', 0) for p in preds]
+                avg_daily_accuracy = np.mean(daily_accuracies) if daily_accuracies else 0
+                
+                prediction_trend_data.append({
+                    "date": date,
+                    "predictions": len(preds),
+                    "r2": avg_daily_accuracy * 100 # Enviando como porcentagem (ex: 92.5) para o gráfico
+                })
+
+            producer_view["charts"]["prediction_trend"] = prediction_trend_data
+
+            predictions_by_day = {}
+            for p in all_predictions:
+                date_str = p.createdAt.strftime('%Y-%m-%d')
+                if date_str not in predictions_by_day:
+                    predictions_by_day[date_str] = []
+                predictions_by_day[date_str].append(p)
+
+            prediction_trend_data = []
+            for date, preds in sorted(predictions_by_day.items()):
+                # Calcula a precisão média (R²) para as predições daquele dia
+                daily_accuracies = [models_metrics_map.get(p.model_name, {}).get('R²', 0) for p in preds]
+                avg_daily_accuracy = np.mean(daily_accuracies) if daily_accuracies else 0
+                
+                prediction_trend_data.append({
+                    "date": date,
+                    "predictions": len(preds),
+                    "r2": avg_daily_accuracy * 100 # Enviando como porcentagem (ex: 92.5)
+                })
+        
+        # --- DADOS COMUNS (Ex: Visualização de espectros) ---
+        spectra_list_metadata = await prisma.spectra.find_many()
+        spectrum_data_list_metadata = await prisma.spectrumdata.find_many()
+        
+        common_data = {
+            "predicted_spectra_options": [{"id": s.id, "name": f"{s.name} ({s.variety})"} for s in spectra_list_metadata],
+            "original_spectra_options": [{"id": s.id, "name": s.dataset} for s in spectrum_data_list_metadata]
         }
         
-        print("Buscando modelos preditivos...")
-        models = await prisma.predictivemodel.find_many()
-        varieties = await prisma.variety.find_many()
-
-        # Criando um dicionário {id: nome} para facilitar a busca
-        variety_dict = {variety.id: variety.name for variety in varieties}
-
-        models_data = []  # Vai armazenar os modelos associados a variedades
-        models_varieties = {}  # {variety_name: [lista de modelos]}
-
-        for model in models:
-            variety_name = variety_dict.get(model.variety, "Desconhecido")
-
-            models_data.append({
-                "id": model.id,
-                "model_name": model.model_name,
-                "attribute": model.attribute,
-                "metrics": model.metrics,
-                "variety_name": variety_name
-            })
-
-            # Agrupando modelos por variedade
-            if variety_name not in models_varieties:
-                models_varieties[variety_name] = []
-            models_varieties[variety_name].append(model.model_name)
-
-        # Se precisar retornar no formato de lista para o frontend:
-        models_varieties_list = [{"variety_name": k, "models": v} for k, v in models_varieties.items()]
-
-        print("Variedades e modelos treinados:", models_varieties_list)
-
-
-        print("Buscando dados espectrais...")
-        spectra = await prisma.spectrumdata.find_many()
-
-        # Criar lista de espectros com caminho salvo
-        spectral_data = []
-        for s in spectra:
-            image_path = save_image_from_base64(s.dataset, s.image)  # Chamando a função do service
-            if image_path:
-                spectral_data.append({"name": s.dataset, "image": image_path})
-        
-        print("Buscando modelos preditivos...")
-        models = await prisma.predictivemodel.find_many()
-        images_train = []
-        images_test = []
-        
-        for s in models:
-            image_path_1 = f"{s.attribute}_{s.model_name}_regression_comparison_plot.png"  # Ajuste conforme necessário
-            image_path_2 = f"{s.attribute}_{s.model_name}_plot_test_predictions.png"
-            images_train.append(image_path_1)
-            images_test.append(image_path_2)
-        
-        print("Buscando gráficos de predições...")
-        graphs = await prisma.spectra.find_many()
-        pred_graphs = [{"name": p.name, "variety": p.variety, "filter": p.filter, "graph": p.graph} for p in graphs]
-        
         return {
-            "spectral_images_data": spectral_data,
-            "report": report_data,
-            "train_images": images_train,
-            "test_images": images_test,
-            "predicted_specs": pred_graphs,
-            "models_metrics": models_data,
-            "models_varieties": models_varieties,
+            "admin_view": admin_view,
+            "producer_view": producer_view,
+            "common_data": common_data
         }
 
     except Exception as e:
-        print(f"Erro inesperado: {str(e)}")
+        # Em produção, use um logger mais robusto
+        print(f"Erro inesperado no dashboard: {str(e)}")
+        # Para depuração, o traceback é útil
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro interno ao carregar dashboard: {str(e)}")
+
+@app.get("/api/spectra/{spectrum_id}")
+async def get_predicted_spectrum_image(spectrum_id: int):
+    spectrum = await prisma.spectra.find_unique(where={"id": spectrum_id}, select={"id": True, "graph": True})
+    if not spectrum or not spectrum.graph:
+        raise HTTPException(status_code=404, detail="Espectro predito não encontrado.")
+    
+    image_url = get_image_url(
+        unique_id=str(spectrum.id),
+        db_data=spectrum.graph,
+        prefix="predicted"
+    )
+    if not image_url:
+        raise HTTPException(status_code=500, detail="Erro ao processar imagem do espectro predito.")
+    return {"image_url": image_url}
+
+
+@app.get("/api/spectrum-data/{spectrum_data_id}")
+async def get_original_spectrum_image(spectrum_data_id: int):
+    spectrum_data = await prisma.spectrumdata.find_unique(where={"id": spectrum_data_id}, select={"id": True, "image": True})
+    if not spectrum_data or not spectrum_data.image:
+        raise HTTPException(status_code=404, detail="Espectro original não encontrado.")
+
+    image_url = get_image_url(
+        unique_id=str(spectrum_data.id),
+        db_data=spectrum_data.image,
+        prefix="original"
+    )
+    if not image_url:
+        raise HTTPException(status_code=500, detail="Erro ao processar imagem do espectro original.")
+    return {"image_url": image_url}
 
 # Função de conexão
 def open_device():
