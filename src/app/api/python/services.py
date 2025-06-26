@@ -3,11 +3,13 @@ import numpy as np
 from scipy.signal import savgol_filter
 import base64
 import io
+import json
 from io import BytesIO
 from datetime import datetime, timezone
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.linear_model import LinearRegression
+
 
 def create_spectra(data):
     return {
@@ -180,3 +182,36 @@ def save_image_from_base64(name: str, image_obj: dict) -> str:
     except Exception as e:
         print(f"Erro ao salvar imagem: {e}")
         return None
+    
+def get_image_url(unique_id: str, db_data: str | dict, prefix: str) -> str | None:
+    """
+    Verifica se um ficheiro de imagem existe. Se não, usa save_image_from_base64 para criá-lo.
+    Retorna o URL path para a imagem.
+    """
+    filename_with_ext = f"{prefix}_{unique_id}.png"
+    filename_without_ext = f"{prefix}_{unique_id}"
+    file_path = SPECTRA_DIR / filename_with_ext
+    url_path = f"/static/spectra/{filename_with_ext}"
+
+    # Se o ficheiro já existe, retorna o caminho diretamente.
+    if file_path.exists():
+        return url_path
+
+    # Se não existe, prepara os dados para a sua função.
+    # Sua função espera um dicionário com a chave "data".
+    image_obj_for_saving = {}
+    if isinstance(db_data, str):
+        try:
+            # Tenta carregar se for uma string JSON
+            data_dict = json.loads(db_data)
+            image_obj_for_saving["data"] = data_dict.get("data", db_data)
+        except (json.JSONDecodeError, TypeError):
+            # Se não for JSON, assume que é uma string base64 pura
+            image_obj_for_saving["data"] = db_data
+    elif isinstance(db_data, dict):
+        image_obj_for_saving = db_data
+    else:
+        return None # Tipo de dado não suportado
+
+    # Chama a sua função para criar o ficheiro
+    return save_image_from_base64(filename_without_ext, image_obj_for_saving)

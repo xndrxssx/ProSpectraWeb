@@ -76,6 +76,7 @@ class SavePredictionRequest(BaseModel):
     name: str
     spectral_data_id: int = Field(..., gt=0)
     prediction: float  # Mudando de `float` para `list[float]`
+    attribute: str
     
 class PredictionResponse(BaseModel):
     id: int
@@ -84,3 +85,10 @@ class PredictionResponse(BaseModel):
     spectral_data_id: int
     prediction: float
     createdAt: datetime
+    attribute: str
+
+class User(BaseModel):
+    id: int
+    username: str
+    password: str
+    userType: str

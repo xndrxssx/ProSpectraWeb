@@ -16,7 +16,7 @@ export default function useAuth() {
         console.log('Decoded Token:', decodedToken);
         
         // Atualiza o estado com as informações do token
-        setIsAdmin(decodedToken.userType === 'administrador');
+        setIsAdmin(decodedToken.userType === 'admin');
         setUserType(decodedToken.userType);
         
         // Salva o token no localStorage

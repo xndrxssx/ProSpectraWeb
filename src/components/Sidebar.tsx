@@ -28,14 +28,14 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
     router.push("/login");
   };
 
-  const { isAdmin, userType, setToken, getToken } = useAuth();
+  const { isAdmin, userType, setToken} = useAuth();
 
   // Exemplo de como utilizar
   console.log("isAdmin:", isAdmin);
   console.log("userType:", userType);
 
   return (
-    <Sidebar className="w-45">
+    <Sidebar className="w-[230px]">
       <SidebarHeader className="flex items-center gap-2 p-4 bg-[#165a16] text-[#ffffff]">
         <AudioWaveform className="w-5 h-5" />
         <h1 className="text-base font-bold text-[#ffffff]">PROSPECTRA</h1>
@@ -162,7 +162,8 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
 
       <SidebarFooter className="!p-0 m-0">
         <div className="text-center text-xs p-0 m-0 bg-[#165a16] text-[#ffffff]">
-          <p className="text-white">© 2024 PROSPECTRA - Todos os direitos reservados</p>
+          <p className="text-white">© 2024 PROSPECTRA <br></br>
+             Todos os direitos reservados</p>
         </div>
       </SidebarFooter>
     </Sidebar>

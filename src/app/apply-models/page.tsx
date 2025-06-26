@@ -62,6 +62,7 @@ function ApplyModels() {
   const [filters, setFilters] = useState({
     model: "",
     variety: "",
+    attribute: "",
     date: "",
     location: "",
     spectralDataId: "",
@@ -200,6 +201,7 @@ function ApplyModels() {
           name: filters.predictionName,
           spectral_data_id: parseInt(filters.spectralDataId, 10),
           prediction: parseFloat(applyData.prediction),
+          attribute: filters.attribute
         }),
       });
     
@@ -251,6 +253,19 @@ function ApplyModels() {
                 id="predictionName"
                 name="predictionName"
                 value={filters.predictionName}
+                onChange={handleFilterChange}
+                className="w-full p-2 border border-gray-300 rounded-lg"
+              />
+            </div>
+            <div>
+              <label htmlFor="attribute" className="block text-sm font-medium mb-2">
+                Atributo da Predição:
+              </label>
+              <input
+                type="text"
+                id="attribute"
+                name="attribute"
+                value={filters.attribute}
                 onChange={handleFilterChange}
                 className="w-full p-2 border border-gray-300 rounded-lg"
               />

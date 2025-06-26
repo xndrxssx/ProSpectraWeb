@@ -24,7 +24,7 @@ function ManageUsers() {
   const [newUser, setNewUser] = useState({
     username: "",
     password: "",
-    userType: "produtor",
+    userType: "prod",
   });
 
   useEffect(() => {
@@ -55,7 +55,7 @@ function ManageUsers() {
   };
 
   const userTypeOptions = [
-    { value: "produtor", label: "Produtor" },
+    { value: "prod", label: "Produtor" },
     { value: "admin", label: "Administrador" },
   ];  
 
@@ -123,7 +123,7 @@ function ManageUsers() {
       if (response.ok) {
         if (data.user) {
           setUsers((prevUsers) => [...prevUsers, data.user]);
-          setNewUser({ username: "", password: "", userType: "produtor" });
+          setNewUser({ username: "", password: "", userType: "prod" });
           toast.success("Usuário adicionado com sucesso!");
         } else {
           toast.error("ID do usuário não foi retornado corretamente.");
@@ -258,7 +258,7 @@ function ManageUsers() {
                         <div className="flex space-x-4"> {/* Alinhando os botões ao lado */}
                           <button
                             onClick={() =>
-                              handleUpdateUserType(user.id, user.userType === "produtor" ? "administrador" : "produtor")
+                              handleUpdateUserType(user.id, user.userType === "prod" ? "admin" : "prod")
                             }
                             className="bg-[#165a16] hover:bg-[#1f7e1f] rounded-sm text-sm px-4 py-2 text-center text-white transition-all duration-300 ease-in-out"
                           >
