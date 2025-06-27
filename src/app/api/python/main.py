@@ -27,16 +27,27 @@ app = FastAPI()
 prisma = Prisma()
 
 # IDs do dispositivo HID
+tellspec_vendor_id = None
+tellspec_product_id = None
+
+# === Constantes de protocolo (exemplo, ajuste conforme seu espectrômetro) ===
+CMD_SCAN_GET_STATUS    = [0x02, 0x19]
+CMD_FILE_LIST_SIZE     = [0x00, 0x2B]
+CMD_FILE_LIST          = [0x00, 0x2C]
+CMD_EEPROM_TEST        = [0x00, 0x01]          # Requires 0 input, returns 1 byte
+CMD_TMP_TEST           = [0x01, 0x06]             # Requires 0 input, returns 1 byte
+TELLSPEC_VENDOR_ID     = 0x0451  # 1105
+TELLSPEC_PRODUCT_ID    = 0x4200  # 16896
+TELLSPEC_MANUFACTURER  = "inno-spectra"
+
+CMD_PERFORM_SCAN = (0x02, 0x18)
+CMD_GET_STATUS = (0x04, 0x04)
+CMD_FILE_GET_READSIZE = (0x00, 0x2D)
+CMD_FILE_GET_DATA = (0x00, 0x2E)
+NNO_FILE_SCAN_DATA = 4  # Verificar valor oficial conforme firmware
+
 VENDOR_ID = 0x0451
 PRODUCT_ID = 0x4200
-
-# Comandos do DLP NIRscan Nano (substitua com os comandos corretos conforme o manual)
-CMD_READ_DEVICE_STATUS = [0x03, 0x04]
-CMD_PERFORM_SCAN = [0x18, 0x02]
-CMD_FILE_GET_READSIZE = [0x2D, 0x00]
-CMD_FILE_GET_DATA = [0x2E, 0x00]
-
-SCAN_DATA_FILE_ID = [0x04]  # ID do arquivo de dados do scan
 
 @app.on_event("startup")
 async def startup():
@@ -1182,172 +1193,116 @@ def open_device():
         device.open(VENDOR_ID, PRODUCT_ID)
         return device
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro conectando ao espectrômetro: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao abrir o dispositivo: {e}")
 
-# Função para enviar comando HID
-def send_hid_command(device, command, payload=None, read_response=True):
-    flags = 0x40 if not read_response else 0xC0
-    packet = [0x00, flags, 0x00]
 
-    payload = payload or []
-    length = len(command) + len(payload)
-    packet.append(length & 0xFF)
-    packet.append((length >> 8) & 0xFF)
-    packet += command + payload
-    packet += [0x00] * (64 - len(packet))  # Preenche até 64 bytes
-
+def send_hid_command(device, group, command, data=b'', read=True, sequence=0):
+    packet = bytearray(64)
+    packet[0] = 0x00  # ID Byte
+    packet[1] = 0xC0 if read else 0x40
+    packet[2] = sequence
+    length = 2 + len(data)
+    packet[3] = length & 0xFF
+    packet[4] = (length >> 8) & 0xFF
+    packet[5] = command
+    packet[6] = group
+    packet[7:7 + len(data)] = data
     device.write(packet)
-
-    if read_response:
-        response = device.read(64, timeout_ms=2000)
-        if not response:
-            raise HTTPException(status_code=408, detail="Timeout lendo resposta do espectrômetro.")
-        return response
-    return None
-
-import struct
-import numpy as np
-from typing import Tuple, List, Literal
-
-def parse_scan_data(
-    raw_bytes: bytes,
-    return_mode: Literal['reflectance', 'absorbance'] = 'reflectance'
-) -> Tuple[List[float], List[float]]:
-    """
-    Faz o parsing dos dados brutos recebidos do NIRscan Nano.
-    
-    Args:
-        raw_bytes (bytes): Dados recebidos do dispositivo.
-        return_mode (str): 'reflectance' (padrão) ou 'absorbance'.
-    
-    Returns:
-        Tuple contendo:
-            - wavelengths (List[float]): Lista de comprimentos de onda (nm).
-            - values (List[float]): Reflectância ou Absorbância.
-    """
-    if len(raw_bytes) < 64:
-        raise ValueError("Dados recebidos são muito curtos!")
-
-    # 1. Interpretar o cabeçalho fixo (baseado no Apêndice H)
-    magic, header_version, header_size, payload_size = struct.unpack_from("<IHHI", raw_bytes, offset=0)
-    
-    if magic != 0x454D4954:
-        raise ValueError(f"Magic Number inválido! Esperado 0x454D4954, recebido {hex(magic)}")
-    
-    # 2. Depois do header, tem alguns campos que podemos pular.
-    # O header todo é de header_size bytes (normalmente 512 bytes)
-
-    # Pular direto para os dados espectrais
-    data_offset = header_size
-    spectral_data = raw_bytes[data_offset:data_offset+payload_size]
-
-    # 3. Interpretar os espectros
-    # Primeiro, vamos interpretar o início do payload:
-    num_pixels = struct.unpack_from("<H", spectral_data, offset=0)[0]
-    offset = 2  # Avançar 2 bytes
-
-    wavelengths = []
-    reflectance = []
-
-    for _ in range(num_pixels):
-        # Cada ponto espectral é (float32 wavelength + float32 reflectance)
-        wavelength, refl = struct.unpack_from("<ff", spectral_data, offset)
-        wavelengths.append(wavelength)
-        reflectance.append(refl)
-        offset += 8  # Avançar 8 bytes (4 + 4)
-
-    if return_mode == 'absorbance':
-        # A absorbância é -log10(reflectância)
-        reflectance = np.array(reflectance)
-        absorbance = -np.log10(reflectance.clip(min=1e-10))  # Protege contra log(0)
-        return wavelengths, absorbance.tolist()
-    else:
-        return wavelengths, reflectance
+    if read:
+        resp = device.read(64, timeout_ms=2000)
+        if not resp:
+            raise HTTPException(status_code=408, detail="Timeout na leitura da resposta HID.")
+        return resp
 
 
-# Endpoint para iniciar a varredura
-@app.post("/start_scan")
-async def start_scan():
-    device = open_device()
-    send_hid_command(device, CMD_PERFORM_SCAN, payload=[0x00])  # Payload 0 = não salvar no SD
-    device.close()
-    return {"message": "Varredura iniciada."}
-
-# Endpoint para verificar status
-@app.get("/status")
-async def get_status():
-    device = open_device()
-    response = send_hid_command(device, CMD_READ_DEVICE_STATUS)
-    device.close()
-    scan_in_progress = bool(response[7] & 0x02)  # Bit 1 indica scan em andamento
-    return {"scan_in_progress": scan_in_progress}
-
-@app.get("/read_data")
-async def read_data(conversion: Literal['reflectance', 'absorbance'] = 'reflectance'):
+@app.post("/api/read_data")
+async def read_data(req: RawSpectrumRequest = Body(...)):
     device = open_device()
 
-    # 1. Pede o tamanho do arquivo
-    send_hid_command(device, CMD_FILE_GET_READSIZE, payload=SCAN_DATA_FILE_ID, read_response=False)
-    size_response = device.read(64, timeout_ms=2000)
-    if not size_response:
-        device.close()
-        raise HTTPException(status_code=408, detail="Timeout lendo tamanho do arquivo.")
+    # Inicia varredura
+    send_hid_command(device, *CMD_PERFORM_SCAN, data=bytes([0x00]), read=False)
+    time.sleep(0.5)
 
-    data_size = int.from_bytes(size_response[7:9], byteorder="little")
+    if req.conversion == "absorbance":
+        # O dispositivo SEMPRE retorna reflectância.
+        # A=−log 10(R)
+        arr = np.array(values)
+        values = (-np.log10(arr.clip(min=1e-10))).tolist()
 
-    # 2. Ler os dados
-    full_data = bytearray()
-    bytes_read = 0
-    while bytes_read < data_size:
-        send_hid_command(device, CMD_FILE_GET_DATA, payload=SCAN_DATA_FILE_ID, read_response=False)
-        chunk = device.read(64, timeout_ms=2000)
-        if not chunk:
-            device.close()
-            raise HTTPException(status_code=408, detail="Timeout lendo dados do espectro.")
-        full_data.extend(chunk[7:])  # Dados reais começam no byte 7
-        bytes_read += len(chunk) - 7
 
-    device.close()
-
-    # 3. Interpretar o conteúdo conforme o protocolo
-    if len(full_data) < 2:
-        raise HTTPException(status_code=500, detail="Dados recebidos são muito curtos para interpretação.")
-
-    # Lê o número de pixels
-    num_pixels = int.from_bytes(full_data[0:2], byteorder="little")
-    offset = 2
-
-    wavelengths = []
-    reflectances = []
-
-    for _ in range(num_pixels):
-        if offset + 8 > len(full_data):
+    # Aguardar término (poll de status)
+    for _ in range(50):
+        time.sleep(1.0)
+        status = send_hid_command(device, *CMD_GET_STATUS)
+        if status[7] & 0x02 == 0:
             break
-        wavelength, reflectance = struct.unpack_from("<ff", full_data, offset)
-        wavelengths.append(wavelength)
-        reflectances.append(reflectance)
-        offset += 8
-
-    if conversion == "reflectance":
-        processed = reflectances
-    elif conversion == "absorbance":
-        reflectances = np.array(reflectances)
-        processed = (-np.log10(reflectances.clip(min=1e-10))).tolist()
     else:
-        raise HTTPException(status_code=400, detail="Conversão inválida. Use 'reflectance' ou 'absorbance'.")
+        device.close()
+        raise HTTPException(status_code=504, detail="Timeout aguardando término da varredura.")
+
+    # CMD_FILE_LIST_SIZE (grupo 0x00, comando 0x2B)
+    size_resp = send_hid_command(device, 0x00, 0x2B, data=bytes([0x00]))
+    n_files = int.from_bytes(size_resp[7:11], "little")
+
+    # CMD_FILE_LIST (grupo 0x00, comando 0x2C)
+    list_resp = send_hid_command(device, 0x00, 0x2C, data=bytes([0x00]))
+    file_ids = list_resp[7:7 + n_files]
+
+    NNO_FILE_SCAN_DATA = file_ids[-1:]
+
+    # Pega tamanho dos dados espectrais
+    size_resp = send_hid_command(device, *CMD_FILE_GET_READSIZE, data=bytes(NNO_FILE_SCAN_DATA))
+    data_size = int.from_bytes(size_resp[7:11], "little")
+
+    print("Tamanho esperado do espectro:", data_size)
+    
+    # Lê os dados em blocos
+    full_data = bytearray()
+    while len(full_data) < data_size:
+        chunk = send_hid_command(device, *CMD_FILE_GET_DATA)
+        full_data.extend(chunk[7:])
+        print("Chunk recebido:", chunk)
+
+    print("Bytes recebidos:", len(full_data))
+
+    print("Status final:", status)
+    print("Tamanho do espectro:", data_size)
+    print("Pacotes lidos:", len(full_data))
+    print("Primeiros 16 bytes:", full_data[:16])
+
+
+    device.close()
+
+    # Interpreta os dados como pares float32
+    num_points = len(full_data) // 8
+    wavelengths = []
+    values = []
+    for i in range(num_points):
+        offset = i * 8
+        wl, val = struct.unpack_from('<ff', full_data, offset)
+        wavelengths.append(wl)
+        values.append(val)
+
+    # Salva no banco como RawSpectrum
+    raw = await prisma.rawspectrum.create(data={
+        "data": datetime.fromisoformat(req.data),
+        "wavelengths": json.dumps(wavelengths),
+        "intensity": json.dumps(values),
+        "name": req.name,
+        "local": req.local,
+        "varietyId": req.varietyId,
+        "conversion": req.conversion,
+    })
+    raw_id = raw.id
+
+    # Salva no disco
+    os.makedirs("src/data/tellspec", exist_ok=True)
+    with open(f"src/data/tellspec/{raw_id}.json", "w") as f:
+        json.dump({"wavelengths": wavelengths, "intensity": values}, f)
 
     return {
-        "message": "Dados de espectro lidos com sucesso!",
+        "ok": True,
+        "rawId": raw_id,
         "wavelengths": wavelengths,
-        "values": processed,
-        "conversion": conversion,
+        "values": values
     }
-
-@app.get("/connect")
-async def connect_device():
-    try:
-        device = open_device()
-        device.close()
-        return {"connected": True}
-    except Exception as e:
-        return {"connected": False, "error": str(e)}

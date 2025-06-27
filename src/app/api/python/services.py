@@ -1,4 +1,6 @@
 from pathlib import Path
+import time
+from fastapi import HTTPException
 import numpy as np
 from scipy.signal import savgol_filter
 import base64
@@ -154,6 +156,7 @@ SPECTRA_DIR = STATIC_DIR / "spectra"
 SPECTRA_DIR.mkdir(parents=True, exist_ok=True)  # Criar se não existir
 
 def save_image_from_base64(name: str, image_obj: dict) -> str:
+
     """Salva uma imagem Base64 na pasta static/spectra e retorna o caminho."""
     try:
         # Garantir que o diretório de destino exista

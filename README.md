@@ -164,8 +164,8 @@ npx prisma generate
 2. Crie e ative o ambiente virtual (opcional, mas recomendado):
 
     ```bash
-    python -m venv venv
-    source venv/bin/activate  # No Windows use 'venv\Scripts\activate'
+    python -m venv env
+    source .\env\Scripts\activate  # No Windows use 'venv\Scripts\activate'
     ```
 
 3. Instale as dependências do backend:

@@ -1,16 +1,17 @@
 # pylint: disable=missing-module-docstring,missing-class-docstring
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Literal
 from pydantic import BaseModel, Field
 from datetime import datetime
+from datetime import date
 
 class SpectraData(BaseModel):
-    name: str
-    content: list[list[float]]  # Alterado de dict para list[list[float]]
-    variety: str
-    datetime: str  # String que será convertida para DateTime
-    local: str
-    filter: str
-    sgParams: dict | None  # Opcional
+    name: str                  # Nome do registro
+    content: List[List[float]] # Dados espectrais (lista de [wavelength, intensidade])
+    variety: int               # ID da variedade selecionada
+    datetime: str              # Data da coleta (YYYY-MM-DD)
+    local: str                 # Local da coleta
+    filter: Optional[str]      # Tipo de filtro escolhido (e.g., "MSC", "SNV", "SG" ou "none")
+    sgParams: Optional[Dict]   # Parâmetros do filtro Savitzky-Golay (se aplicável)
 
 class ModelResponse(BaseModel):
     id: int

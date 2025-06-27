@@ -42,7 +42,6 @@
     "react-dom": "^19.0.0",
     "react-dropzone": "^14.3.8",
     "react-router-dom": "^6.28.1",
-    "react-select": "^5.10.1",
     "react-spinners": "^0.15.0",
     "react-toastify": "^11.0.3",
     "react-window": "^1.8.11",
@@ -54,7 +53,6 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@prisma/client": "^5.22.0",
     "@types/bcrypt": "^5.0.2",
     "@types/d3": "^7.4.3",
     "@types/jsonwebtoken": "^9.0.7",
@@ -62,6 +60,7 @@
     "@types/papaparse": "^5.3.15",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
+    "@types/react-select": "^5.0.0",
     "@types/react-window": "^1.8.8",
     "@types/three": "^0.171.0",
     "@types/xlsx": "^0.0.35",
