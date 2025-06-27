@@ -93,3 +93,25 @@ class User(BaseModel):
     username: str
     password: str
     userType: str
+
+class RawSpectrumRequest(BaseModel):
+    data: str
+    name: str
+    local: str
+    varietyId: int
+    conversion: str
+
+class ReadRequest(BaseModel):
+    name: str
+    local: str
+    varietyId: int
+    data: str  # "YYYY-MM-DD"
+
+class SaveRequest(BaseModel):
+    name: str
+    content: list[list[float]]
+    variety: str
+    datetime: str
+    local: str
+    filter: str
+    sgParams: dict

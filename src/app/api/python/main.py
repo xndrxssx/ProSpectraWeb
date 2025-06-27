@@ -1,6 +1,8 @@
+import os
 import hid
 import time
 import json
+import struct
 import pickle
 import logging
 import numpy as np
@@ -9,7 +11,7 @@ from pathlib import Path
 from prisma import Prisma
 from sklearn.svm import SVR
 from sklearn.decomposition import PCA
-from typing import Tuple, List, Literal
+from typing import List
 from sklearn.pipeline import make_pipeline
 from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
@@ -19,9 +21,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.model_selection import cross_val_predict
-from fastapi import File, HTTPException,FastAPI, Query, UploadFile, Depends
+from fastapi import File, HTTPException,FastAPI, Query, UploadFile, Body
 from .services import apply_msc, apply_snv, apply_sg, plot_filtered_data, calculate_metrics, get_image_url, save_regression_comparison_plot, plot_test_predictions
-from .models import SpectraData, ModelData, ModelResponse, SpectrumResponse, SpectrumData, TargetData, TargetResponse, XResponse, YResponse, ApplyModelRequest, SavePredictionRequest, PredictionResponse, User
+from .models import SpectraData, ModelData, ModelResponse, SpectrumResponse, SpectrumData, TargetData, TargetResponse, XResponse, YResponse, ApplyModelRequest, SavePredictionRequest, PredictionResponse, RawSpectrumRequest
 
 app = FastAPI()
 prisma = Prisma()
