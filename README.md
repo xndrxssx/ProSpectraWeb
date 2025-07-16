@@ -1,5 +1,5 @@
-# ProSpectraWeb
-ProSpectra Web é a interface administrativa para viticultores e gerentes. A plataforma oferece ferramentas para analisar a qualidade das uvas, personalizar modelos preditivos e gerar relatórios.
+# ProSpectra Web
+ProSpectra Web é a interface de gerenciamento para viticultores, permitindo a análise da qualidade de uvas através de dados espectrais. A plataforma oferece ferramentas para configurar modelos preditivos, visualizar dados em dashboards interativos e gerar relatórios detalhados.
 
 ## Funcionalidades Principais
 - Enviar dados espectrais (localmente ou diretamente do espectrômetro).
@@ -17,6 +17,8 @@ ProSpectra Web é a interface administrativa para viticultores e gerentes. A pla
 - FastAPI para backend em Python.
 ### Banco de Dados:
 - MySQL (Prisma).
+## Suporte a Docker
+- Pode ser executado em containers Docker para facilitar a implantação em diferentes ambientes.
 ### Autenticação:
 - JWT (JSON Web Token).
 - NextAuth.js para o fluxo de autenticação.
@@ -78,8 +80,30 @@ Aqui estão algumas capturas de tela da interface do ProSpectra Web:
 
 ![espectros](https://github.com/user-attachments/assets/93e3559f-0c99-42b4-8d33-0768509768bd)
 
+## 🐳 Executando com Docker
 
-## Como Começar
+### Pré-requisitos
+- Docker instalado na sua máquina ([Guia de instalação do Docker](https://docs.docker.com/get-docker/))
+
+### Como rodar
+
+1. Clone o repositório:
+    ```bash
+    git clone https://github.com/seu-usuario/prospectra-web.git
+    cd prospectra-web
+    ```
+
+2. Compile a imagem Docker:
+    ```bash
+    docker build -t prospectra-web .
+    ```
+
+3. Inicie o container:
+    ```bash
+    docker run -p 3000:3000 -p 8000:8000 prospectra-web
+    ```
+
+> Isso inicia tanto o frontend (Next.js) na porta 3000 quanto o backend (FastAPI) na porta 8000.
 
 ### Instalação
 Antes de rodar o servidor de desenvolvimento, instale as dependências necessárias. Execute o comando a seguir no diretório do projeto:
@@ -124,8 +148,8 @@ Este projeto utiliza Prisma como ORM para interagir com o banco de dados. Siga o
 Certifique-se de ter o Prisma CLI instalado globalmente ou localmente no seu projeto. Se ainda não estiver instalado, execute:
 
 ```bash
-npm install prisma --save-dev
-npx prisma init
+    npm install prisma --save-dev
+    npx prisma init
 ```
 
 2. Atualize o arquivo .env
@@ -137,8 +161,8 @@ O esquema do Prisma está localizado no arquivo prisma/schema.prisma. Esse arqui
 4. Execute as Migrações
 Para aplicar as alterações do seu esquema Prisma no banco de dados, execute:
 
-```
-npx prisma migrate dev --name init
+```bash
+    npx prisma migrate dev --name init
 ```
 Isso irá:
 
@@ -148,56 +172,14 @@ Isso irá:
 5. Gere o Prisma Client
 Para usar o Prisma Client no seu código, execute:
 
+```bash
+    npx prisma generate
 ```
-npx prisma generate
+
+### ⚠️ Observações:
+- O container precisa ter suporte à biblioteca nativa `libDLPSpectrumLibrary.so`. Certifique-se de montar o volume contendo a biblioteca ou copiá-la corretamente no `Dockerfile`.
+- O acesso a dispositivos USB (como espectrômetros) pode exigir permissões especiais no host e configuração com `--device` ao executar o container:
+
+```bash
+    docker run --device=/dev/hidraw0 prospectra-web
 ```
-
-### Configuração do Python
-
-1. Navegue até o diretório do backend:
-
-    ```bash
-    cd src
-    cd backend  # Ou o nome da pasta do seu backend
-    ```
-
-2. Crie e ative o ambiente virtual (opcional, mas recomendado):
-
-    ```bash
-    python -m venv env
-    source .\env\Scripts\activate  # No Windows use 'venv\Scripts\activate'
-    ```
-
-3. Instale as dependências do backend:
-
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-4. Execute o servidor FastAPI:
-
-    ```bash
-    uvicorn src.app.api.python.main:app
-    ```
-
-   Agora sua API estará rodando em `http://localhost:8000`.
-
-### Configurando o Next.js
-
-1. Navegue ate a raiz do projeto
-    ```bash
-    cd ..
-    npm install
-    ```
-
-2. Inicie o servidor de desenvolvimento com o comando:
-    ```bash
-    npm run dev
-    ```
-Isso iniciará o servidor no modo de desenvolvimento.
-
-3. Abra o seu navegador e acesse:
-```
-http://localhost:3000/
-```
-Agora você poderá visualizar a aplicação em execução localmente.

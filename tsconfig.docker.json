@@ -1,0 +1,48 @@
+{
+  // REMOVA COMPLETAMENTE a linha "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noImplicitAny": true,
+    "target": "ES6",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "forceConsistentCasingInFileNames": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "baseUrl": ".",
+    // AJUSTE O CAMINHO PARA O CONTEXTO DO DOCKER
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  // AJUSTE OS CAMINHOS PARA O CONTEXTO DO DOCKER
+  "include": [
+    "src/**/*",
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "prisma/**/*.ts",
+    "prisma/seed.mjs",
+    "backend/api"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

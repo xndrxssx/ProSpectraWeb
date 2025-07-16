@@ -1,0 +1,64 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: final
+    env_file: ./.env  # Força o container a ler o .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/backend/app
+      - ./backend/prisma:/app/backend/prisma
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+    privileged: true
+    # A variável DATABASE_URL agora virá diretamente do env_file
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend-builder
+    env_file: ./.env  # Força o container a ler o .env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    command: npm run dev
+    # As variáveis DATABASE_URL e NEXT_PUBLIC_API_URL virão do env_file
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+
+  mysql-db:
+    image: mysql:8.0
+    container_name: prospectra_mysql
+    restart: always
+    env_file: ./.env  # Força o container a ler o .env
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD
+        - mysqladmin
+        - ping
+        - -h
+        - localhost
+        - -u
+        - "${MYSQL_USER}"
+        - -p${MYSQL_PASSWORD}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+volumes:
+  mysql-data:

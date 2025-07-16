@@ -26,17 +26,17 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["frontend/src/*"]
     }
   },
   "include": [
-    "src/**/*",
+    "frontend/src/**/*",
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
     "prisma/**/*.ts", 
-    "prisma/seed.mjs"  ],
+    "prisma/seed.mjs", "backend/api"  ],
   "exclude": [
     "node_modules"
   ]

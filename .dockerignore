@@ -1,0 +1,23 @@
+# Dependências locais que não devem ser copiadas
+node_modules
+env
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Pasta de build do Next.js (não precisamos copiar a local)
+.next
+
+# Arquivos de ambiente locais
+.env.local
+.env.*.local
+
+# Metadados do sistema operacional
+.DS_Store
+Thumbs.db
+
+# Cache e configurações de IDE
+.vscode/
+.idea/
