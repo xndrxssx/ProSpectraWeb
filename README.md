@@ -1,32 +1,29 @@
-# ProSpectra Web
-ProSpectra Web é a interface de gerenciamento para viticultores, permitindo a análise da qualidade de uvas através de dados espectrais. A plataforma oferece ferramentas para configurar modelos preditivos, visualizar dados em dashboards interativos e gerar relatórios detalhados.
+# 🍇 ProSpectra Web 
+ProSpectra Web é uma plataforma de gerenciamento para viticultores, permitindo a análise da qualidade de uvas através de dados espectrais. A aplicação oferece ferramentas para configurar modelos preditivos, visualizar dados em dashboards interativos e gerar relatórios detalhados.
+  
+<a name="ancora"></a>
+## 🗂️ Tabela de Conteúdos
+- ✨ [Funcionalidades Principais](#ancora1)
+- 📸 [Interface do Sistema](#ancora2)
+- 🛠️ [Tecnologias Utilizadas](#ancora3)
+- 🚀 [Começando](#ancora4)
+- 📑 [Pré-requisitos](#ancora5)
+- ☑️ [Instalação Local](#ancora6)
+- 🐳 [Executando com Docker](#ancora7)
+- 🤝 [Como Contribuir](#ancora8)
 
-## Funcionalidades Principais
-- Enviar dados espectrais (localmente ou diretamente do espectrômetro).
-- Configurar modelos preditivos e filtros para diferentes variedades de uvas.
-- Painéis interativos com gráficos e tabelas detalhadas.
-- Gerenciamento de usuários com permissões personalizadas.
-- Exportar relatórios em PDF ou Excel.
+<a id="ancora1"></a>
+## ✨ Funcionalidades Principais
+- **Análise Espectral:** Envio de dados localmente ou diretamente do espectrômetro para análise.
+- **Modelagem Preditiva:** Configuração de modelos e filtros para diferentes variedades de uvas.
+- **Dashboards Interativos:** Visualização de dados com gráficos e tabelas detalhadas.
+- **Gestão de Acesso:** Gerenciamento de usuários com permissões personalizadas.
 
-## Tecnologias Utilizadas
-### Frontend:
-- Next.js 15 (utilizando Turbopack para builds mais rápidos).
-### Backend:
-- Next.js API Routes.
-- Prisma ORM para gerenciamento de banco de dados.
-- FastAPI para backend em Python.
-### Banco de Dados:
-- MySQL (Prisma).
-## Suporte a Docker
-- Pode ser executado em containers Docker para facilitar a implantação em diferentes ambientes.
-### Autenticação:
-- JWT (JSON Web Token).
-- NextAuth.js para o fluxo de autenticação.
-### Estilo:
-- Tailwind CSS (com plugins como tailwind-merge e tailwindcss-animate).
-
-## Imagens
+<a id="ancora2"></a>
+## 📸 Interface do Sistema
 Aqui estão algumas capturas de tela da interface do ProSpectra Web:
+<details>
+  <summary>Clique aqui para ver as capturas de tela da aplicação</summary>
 
 ### Página de Entrada
 
@@ -79,107 +76,95 @@ Aqui estão algumas capturas de tela da interface do ProSpectra Web:
 ### Dashboard - espectros
 
 ![espectros](https://github.com/user-attachments/assets/93e3559f-0c99-42b4-8d33-0768509768bd)
+</details>
 
-## 🐳 Executando com Docker
+<a id="ancora3"></a>
+## 🛠️ Tecnologias Utilizadas
+| **Categoria**    | **Tecnologia** |
+| -------- | ------- |
+| Frontend  | [Next.js](https://nextjs.org) 15 (com [Turbopack](https://nextjs.org/docs/app/api-reference/turbopack))    |
+| Backend | [FastAPI](https://fastapi.tiangolo.com) (Python) e [Next.js API Routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes)     |
+| Banco de Dados    | [MySQL](https://www.mysql.com) com [Prisma ORM](https://www.prisma.io)    |
+| Autenticação    | [NextAuth.js](https://next-auth.js.org) com [JWT](https://jwt.io)    |
+| Estilo    | [Tailwind CSS](https://tailwindcss.com) (com `tailwind-merge` e `tailwindcss-animate`)    |
+| Deployment    | [Docker](https://www.docker.com)    |
 
-### Pré-requisitos
-- Docker instalado na sua máquina ([Guia de instalação do Docker](https://docs.docker.com/get-docker/))
-
-### Como rodar
-
+<a id="ancora4"></a>
+## 🚀 Começando
+Siga estas instruções para configurar e executar o projeto em seu ambiente local.
+<a id="ancora5"></a>
+**Pré-requisitos**
+- [Node.js](https://nodejs.org/pt) (versão 20 ou superior)
+- [Python](https://www.python.org) (versão 3.11 ou superior)
+- [Docker](https://docs.docker.com/get-started/get-docker/) (opcional, para execução em container)
+- Um servidor de banco de dados MySQL acessível.
+<a id="ancora6"></a>
+**Instalação Local**
 1. Clone o repositório:
-    ```bash
-    git clone https://github.com/seu-usuario/prospectra-web.git
-    cd prospectra-web
-    ```
-
-2. Compile a imagem Docker:
-    ```bash
-    docker build -t prospectra-web .
-    ```
-
-3. Inicie o container:
-    ```bash
-    docker run -p 3000:3000 -p 8000:8000 prospectra-web
-    ```
-
-> Isso inicia tanto o frontend (Next.js) na porta 3000 quanto o backend (FastAPI) na porta 8000.
-
-### Instalação
-Antes de rodar o servidor de desenvolvimento, instale as dependências necessárias. Execute o comando a seguir no diretório do projeto:
-
+```bash
+git clone https://github.com/xndrxssx/ProSpectraWeb.git
+cd prospectra-web
+```
+2. Instale as dependências do frontend:
 ```bash
 npm install
-# or
-yarn install
-# or
-pnpm install
-# or
-bun install
+# ou yarn install, pnpm install, bun install
 ```
-
-### Configuração do Arquivo .env
-Este projeto utiliza um arquivo .env para armazenar variáveis de ambiente sensíveis. Siga as instruções abaixo para configurar o arquivo corretamente:
-
-1. Crie o arquivo .env na raiz do projeto.
-2. Adicione as variáveis de ambiente necessárias, copiando o exemplo abaixo:
-
-```env
-# URL do banco de dados (por exemplo, MySQL) para o Prisma
-DATABASE_URL="<mysql>://<usuario>:<senha>@localhost:<porta>/prospectra"
-
-# Chave secreta para o JWT
-JWT_SECRET="super_secret_key_123"
-
-# Porta do servidor (se não usar a porta 3000 padrão)
-PORT=3000
-
-# Ambiente (desenvolvimento, produção, etc.)
-NODE_ENV=development
-
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
-```
-
-### Configuração do Prisma
-
-Este projeto utiliza Prisma como ORM para interagir com o banco de dados. Siga os passos abaixo para configurar o Prisma para este projeto:
-
-1. Instale o Prisma
-Certifique-se de ter o Prisma CLI instalado globalmente ou localmente no seu projeto. Se ainda não estiver instalado, execute:
-
+3. Instale as dependências do backend:
 ```bash
-    npm install prisma --save-dev
-    npx prisma init
+pip install -r requirements.txt
 ```
-
-2. Atualize o arquivo .env
-O Prisma depende da variável de ambiente DATABASE_URL para se conectar ao seu banco de dados.
-
-3. Esquema Prisma
-O esquema do Prisma está localizado no arquivo prisma/schema.prisma. Esse arquivo define seus modelos de dados e suas relações.
-
-4. Execute as Migrações
-Para aplicar as alterações do seu esquema Prisma no banco de dados, execute:
-
+4. Configure as Variáveis de Ambiente:
+- Crie um arquivo `.env` na raiz do projeto.
+- Copie o conteúdo do exemplo abaixo e preencha com suas credenciais.
 ```bash
-    npx prisma migrate dev --name init
+# URL de conexão do seu banco de dados MySQL para o Prisma
+DATABASE_URL="mysql://<USUARIO>:<SENHA>@<HOST>:<PORTA>/prospectra"
+
+# Chave secreta para o JWT e NextAuth.js
+JWT_SECRET="gere_uma_chave_secreta_forte_aqui"
+NEXTAUTH_SECRET="gere_outra_chave_secreta_aqui"
+NEXTAUTH_URL="http://localhost:3000"
+
+# URL para o frontend se conectar ao backend FastAPI
+NEXT_PUBLIC_API_URL="http://127.0.0.1:8000"
 ```
-Isso irá:
-
-- Criar as tabelas necessárias no banco de dados.
-- Rastrear as migrações para manter o esquema sincronizado.
-
-5. Gere o Prisma Client
-Para usar o Prisma Client no seu código, execute:
-
+5. Configure o Banco de Dados com Prisma:
+- Aplique as migrações para criar as tabelas no seu banco de dados:
 ```bash
-    npx prisma generate
+npx prisma migrate dev --name init
 ```
-
-### ⚠️ Observações:
-- O container precisa ter suporte à biblioteca nativa `libDLPSpectrumLibrary.so`. Certifique-se de montar o volume contendo a biblioteca ou copiá-la corretamente no `Dockerfile`.
-- O acesso a dispositivos USB (como espectrômetros) pode exigir permissões especiais no host e configuração com `--device` ao executar o container:
-
+- Gere o Prisma Client para ser usado pela aplicação:
 ```bash
-    docker run --device=/dev/hidraw0 prospectra-web
+npx prisma generate
 ```
+6. Execute a Aplicação:
+- Em um terminal, inicie o backend FastAPI:
+```bash
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+- Em outro terminal, inicie o frontend Next.js:
+```bash
+npm run dev
+```
+A aplicação estará disponível em `http://localhost:3000`.
+
+<a id="ancora7"></a>
+## 🐳 Executando com Docker
+Para uma implantação simplificada, use o Docker e o Docker Compose.
+1. Configure o arquivo `.env` conforme o passo 4 da instalação local.
+2. Inicie os containers:
+```bash
+docker-compose up --build
+```
+Este comando irá construir as imagens e iniciar os serviços do frontend, backend e banco de dados automaticamente.
+**Observação sobre o Hardware:** Para que o container Docker acesse o espectrômetro via USB, pode ser necessário passar o dispositivo com a flag `--device=/dev/hidraw0` (ou o nome correspondente no seu sistema) e executar o container com privilégios.
+
+<a id="ancora8"></a>
+## 🤝 Como Contribuir
+Contribuições são bem-vindas! Se você deseja ajudar a melhorar o ProSpectra Web, siga estes passos:
+1. Faça um Fork do projeto.
+2. Crie uma nova Branch (`git checkout -b feature/sua-feature`).
+3. Faça suas alterações e Commit (`git commit -m 'feat: Adiciona nova feature'`).
+4. Envie para a sua Branch (`git push origin feature/sua-feature`).
+5. Abra um Pull Request.
