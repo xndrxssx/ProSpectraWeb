@@ -9,12 +9,14 @@ services:
     env_file: ./.env  # Força o container a ler o .env
     ports:
       - "8000:8000"
+    working_dir: /app/backend
     volumes:
       - ./backend/app:/app/backend/app
       - ./backend/prisma:/app/backend/prisma
-    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     privileged: true
-    # A variável DATABASE_URL agora virá diretamente do env_file
+    devices:
+      - "/dev/bus/usb/001/003:/dev/bus/usb/001/003"
     depends_on:
       mysql-db:
         condition: service_healthy

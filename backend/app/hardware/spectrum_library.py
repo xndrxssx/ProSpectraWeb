@@ -1,154 +1,114 @@
+# app/hardware/spectrum_library.py
+
 import ctypes
 import json
 import os
 
-# 1) Estruturas ctypes (exemplo simplificado)
-class scanResults(ctypes.Structure):
-    _fields_ = [
-        ("length", ctypes.c_uint32),
-        ("wavelength", ctypes.POINTER(ctypes.c_double)),
-        ("intensity", ctypes.POINTER(ctypes.c_double)),
-    ]
+# --- Exceções Customizadas ---
+class SpectrumLibraryError(Exception):
+    """Exceção base para erros na biblioteca de espectro."""
+    pass
 
-# 2) Carrega a biblioteca
-_here    = os.path.dirname(__file__)
-lib_name = "DLPSpectrumLibrary.dll"
-lib_path = os.path.join(_here, lib_name)
-_lib     = ctypes.CDLL(lib_path)
+# --- Carregamento da Biblioteca DLL ---
+try:
+    _here = os.path.dirname(os.path.abspath(__file__))
+    _lib_path = os.path.join(_here, "DLPSpectrumLibrary.dll")
+    _lib = ctypes.CDLL(_lib_path)
+except (OSError, ImportError) as e:
+    raise RuntimeError(f"CRÍTICO: Não foi possível carregar a DLPSpectrumLibrary.dll. Verifique o caminho. Erro: {e}")
 
+# --- Definições de Estruturas ctypes (CORRIGIDAS) ---
+# Estas estruturas agora espelham a implementação funcional do repositório de referência.
 
-# 3) Define protótipos
-_lib.dlpspec_scan_interpret.argtypes = [
-    ctypes.POINTER(ctypes.c_uint8),
-    ctypes.c_size_t,
-    ctypes.POINTER(scanResults),
-]
-_lib.dlpspec_scan_interpret.restype = ctypes.c_int
-
-# 4) Wrapper Python
-def scan_interpret(raw_bytes: bytes) -> dict:
-    n = len(raw_bytes)
-    buf = (ctypes.c_uint8 * n)(*raw_bytes)
-    results = scanResults()
-    status = _lib.dlpspec_scan_interpret(buf, n, ctypes.byref(results))
-    if status != 0:
-        raise RuntimeError(f"Erro C: {status}")
-    # extrai arrays
-    wave = [results.wavelength[i] for i in range(results.length)]
-    inten = [results.intensity[i]  for i in range(results.length)]
-    return {"length": results.length, "wavelength": wave, "intensity": inten}
-
-class calibCoeffs(ctypes.Structure):
-    _fields_ = [
-        ("ShiftVectorCoeffs", ctypes.c_double*3),
-        ("PixelToWavelengthCoeffs", ctypes.c_double * 3),
-    ]
-
-class slewScanSection(ctypes.Structure):
+class SlewScanSection(ctypes.Structure):
     _fields_ = [
         ("section_scan_type", ctypes.c_uint8),
         ("width_px", ctypes.c_uint8),
         ("wavelength_start_nm", ctypes.c_uint16),
         ("wavelength_end_nm", ctypes.c_uint16),
         ("num_patterns", ctypes.c_uint16),
-        ("exposure_time", ctypes.c_uint16)
+        ("exposure_time", ctypes.c_uint32), # CORRIGIDO: Este campo é maior.
     ]
 
-class slewScanConfigHead(ctypes.Structure):
+class SlewScanConfigHead(ctypes.Structure):
     _fields_ = [
         ("scan_type", ctypes.c_uint8),
         ("scanConfigIndex", ctypes.c_uint16),
-        ("ScanConfig_serial_number", ctypes.c_char*8),
-        ("config_name", ctypes.c_char*40),
+        ("ScanConfig_serial_number", ctypes.c_char * 9), # CORRIGIDO: Tamanho e tipo
+        ("config_name", ctypes.c_char * 41),             # CORRIGIDO: Tamanho e tipo
         ("num_repeats", ctypes.c_uint16),
-        ("num_sections", ctypes.c_uint8)
+        ("num_sections", ctypes.c_uint8),
     ]
 
-class slewScanConfig(ctypes.Structure):
+class SlewScanConfig(ctypes.Structure):
     _fields_ = [
-        ("head", slewScanConfigHead),
-        ("section", slewScanSection*5)
+        ("head", SlewScanConfigHead),
+        ("section", SlewScanSection * 5),
     ]
 
-class scanResults(ctypes.Structure):
+class ScanResults(ctypes.Structure):
+    # Esta estrutura complexa define como os dados de resultado são decodificados.
     _fields_ = [
-        ("header_version", ctypes.c_uint32),
-        ("scan_name", ctypes.c_char * 20),
-        ("year", ctypes.c_uint8),
-        ("month", ctypes.c_uint8),
-        ("day", ctypes.c_uint8),
-        ("day_of_week", ctypes.c_uint8),
-        ("hour", ctypes.c_uint8),
-        ("minute", ctypes.c_uint8),
-        ("second", ctypes.c_uint8),
-        ("system_temp_hundredths", ctypes.c_int16),
-        ("detector_temp_hundredths", ctypes.c_int16),
-        ("humidity_hundredths", ctypes.c_uint16),
-        ("lamp_pd", ctypes.c_uint16),
-        ("scanDataIndex", ctypes.c_uint32),
-        ("calibration_coeffs", calibCoeffs),
-        ("serial_number", ctypes.c_char),
-        ("adc_data_length", ctypes.c_uint16),
-        ("black_pattern_first", ctypes.c_uint8),
-        ("black_pattern_period", ctypes.c_uint8),
-        ("pga", ctypes.c_uint8),
-        ("cfg", slewScanConfig),
-        ("wavelength", ctypes.c_double * 864),
-        ("intensity", ctypes.c_int * 864),
-        ("length", ctypes.c_int)
+        ('header_version', ctypes.c_uint32),
+        ('scan_name', ctypes.c_char * 41), # CORRIGIDO: Tamanho
+        ('year', ctypes.c_uint8),
+        ('month', ctypes.c_uint8),
+        ('day', ctypes.c_uint8),
+        ('day_of_week', ctypes.c_uint8),
+        ('hour', ctypes.c_uint8),
+        ('minute', ctypes.c_uint8),
+        ('second', ctypes.c_uint8),
+        ('system_temp_hundredths', ctypes.c_int16),
+        ('detector_temp_hundredths', ctypes.c_int16),
+        ('humidity_hundredths', ctypes.c_uint16),
+        ('lamp_pd', ctypes.c_uint16),
+        ('scanDataIndex', ctypes.c_uint32),
+        ('ShiftVectorCoeffs', ctypes.c_double * 3),
+        ('PixelToWavelengthCoeffs', ctypes.c_double * 3),
+        ('serial_number', ctypes.c_char * 9), # CORRIGIDO: Tamanho
+        ('adc_data_length', ctypes.c_uint16),
+        ('black_pattern_first', ctypes.c_uint8),
+        ('black_pattern_period', ctypes.c_uint8),
+        ('pga', ctypes.c_uint8),
+        ('cfg', SlewScanConfig),
+        ('wavelength', ctypes.POINTER(ctypes.c_double)),
+        ('intensity', ctypes.POINTER(ctypes.c_int32)), # CORRIGIDO: Tipo de dado
+        ('length', ctypes.c_int),
     ]
 
-dlp_nano_lib = ctypes.CDLL(lib_path)
-dlp_nano_lib.dlpspec_scan_interpret.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.POINTER(scanResults)]
+# --- Prototipagem das Funções da DLL ---
+_lib.dlpspec_scan_write_configuration.argtypes = [
+    ctypes.POINTER(SlewScanConfig),
+    ctypes.POINTER(ctypes.c_uint8),
+    ctypes.POINTER(ctypes.c_uint32),
+]
+_lib.dlpspec_scan_write_configuration.restype = ctypes.c_int
 
+_lib.dlpspec_scan_interpret.argtypes = [
+    ctypes.c_void_p,
+    ctypes.c_size_t,
+    ctypes.POINTER(ScanResults),
+]
+_lib.dlpspec_scan_interpret.restype = ctypes.c_int
 
-def unpack_fields(result_in):
-    dict = {}
-    for field_name, field_type in result_in._fields_:
-        try:
-            dict[field_name] = unpack_fields(getattr(result_in, field_name))
-        except Exception as error:
-            value = getattr(result_in, field_name)
+# --- Funções Wrapper em Python ---
+def scan_interpret(raw_bytes: bytes) -> dict:
+    """Interpreta o blob de dados brutos da varredura usando a biblioteca C."""
+    if not raw_bytes:
+        raise SpectrumLibraryError("Dados brutos para interpretação estão vazios.")
+        
+    # buffer = ctypes.create_string_buffer(raw_bytes, len(raw_bytes))
+    buffer = ctypes.create_string_buffer(bytes(raw_bytes), len(raw_bytes))
 
-            if type(value) == type(bytes()):
-                value = value.decode("utf-8")
-            elif type(value) not in [type(int()), type(float)]:
-                newval = []
-                for i in value:
-                    try:
-                        newval.append(unpack_fields(i))
-                    except Exception as error:
-                        newval.append(i)
-                value = newval
-            dict[field_name] = value
-    return dict
+    results = ScanResults()
+    
+    status = _lib.dlpspec_scan_interpret(ctypes.byref(buffer), len(raw_bytes), ctypes.byref(results))
+    
+    if status != 0:
+        raise SpectrumLibraryError(f"A função C dlpspec_scan_interpret falhou com o código de erro: {status}")
 
+    # Extrai os dados dos ponteiros para listas Python
+    wavelengths = [results.wavelength[i] for i in range(results.length)]
+    intensities = [results.intensity[i] for i in range(results.length)]
 
-def scan_interpret(myArr):
-
-    byte_input_list = []
-    for byte in myArr:
-        byte_input_list.append(byte)
-
-    # Initialise the input data buffer
-    buffer = ctypes.create_string_buffer(len(byte_input_list))
-    for counter, byte in enumerate(byte_input_list):
-        buffer[counter] = byte
-    # Create the pointer to the buffer
-    buffer_pointer = ctypes.pointer(buffer)
-
-    # Create the size variable
-    size_number = ctypes.c_size_t(len(byte_input_list))
-
-    # Create the results variable
-    results = scanResults()
-    # Create the pointer to the results
-    res_pointer = ctypes.byref(results)
-
-    # Run the library fucntion
-    dlp_nano_lib.dlpspec_scan_interpret(buffer_pointer, size_number, res_pointer)
-
-    # unpack the results
-    unpacked = unpack_fields(results)
-
-    return json.dumps(unpacked)
+    return {"wavelength": wavelengths, "intensity": intensities}

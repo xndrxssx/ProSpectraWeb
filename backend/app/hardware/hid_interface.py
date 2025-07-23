@@ -1,134 +1,203 @@
+# app/hardware/hid_interface.py
+
 import hid
 import time
 import json
 import numpy as np
-from fastapi import HTTPException
+import ctypes
+import os
+from app.core import config
+from app.hardware.spectrum_library import SlewScanConfig, _lib, scan_interpret, SpectrumLibraryError
 
-from app.core.config import (
-    VENDOR_ID, PRODUCT_ID, CMD_SET_ACTIVE_SCAN_CFG, CMD_PERFORM_SCAN,
-    CMD_GET_STATUS, CMD_FILE_GET_READSIZE, CMD_FILE_GET_DATA, NNO_FILE_SCAN_DATA
-)
+# --- Exceções Customizadas para a Camada de Hardware ---
+class DeviceConnectionError(Exception):
+    """Erro ao tentar conectar ou abrir o dispositivo."""
+    pass
 
-# Tenta importar a biblioteca de interpretação. Se falhar, usa um mock.
-try:
-    from app.hardware.spectrum_library import scan_interpret
-except (ImportError, ModuleNotFoundError):
-    print("AVISO: Wrapper 'spectrum_library.py' não encontrado. Usando uma função mock.")
-    def scan_interpret(raw_data):
-        num_points = 228
-        mock_wavelengths = [900 + i * 3.5 for i in range(num_points)]
-        mock_intensity = [10000 * (1 - (i - 114)**2 / 114**2) + np.random.rand() * 500 for i in range(num_points)]
-        return json.dumps({"wavelength": mock_wavelengths, "intensity": mock_intensity})
+class HIDCommandError(Exception):
+    """Erro durante a comunicação de um comando HID."""
+    pass
 
+class ScanFailedError(Exception):
+    """A varredura falhou em gerar dados válidos."""
+    pass
 
-def _send_hid_command(device, group, command, data=b'', read=True, sequence=0, timeout_ms=5000):
-    """
-    (Função interna) Envia um comando para o dispositivo HID e lê a resposta,
-    lidando com múltiplos pacotes.
-    """
+# --- Funções Auxiliares de Baixo Nível ---
+
+def _send_command(device: hid.device, group: int, command: int, data: bytes = b'', read: bool = True):
+    """Função interna para enviar um comando HID, ler e validar a resposta."""
     packet = bytearray(64)
     packet[0] = 0x00
     packet[1] = 0xC0 if read else 0x40
-    packet[2] = sequence
     length = 2 + len(data)
-    packet[3] = length & 0xFF
-    packet[4] = (length >> 8) & 0xFF
-    packet[5] = command
-    packet[6] = group
+    packet[3:5] = length.to_bytes(2, 'little')
+    packet[5], packet[6] = command, group
     packet[7:7 + len(data)] = data
 
     try:
         device.write(packet)
-
+        time.sleep(0.1)  # Aguarda um pouco para garantir que o comando foi enviado
+        # Para comandos de escrita, fazemos uma leitura RÁPIDA e não-bloqueante para o ACK.
         if not read:
-            # Para comandos de escrita, aguarda uma resposta de ACK simples.
-            ack_resp = device.read(64, timeout_ms=timeout_ms)
-            if not ack_resp or ack_resp[5] != command:
-                print(f"Aviso: ACK para o comando {command} pode não ter sido recebido corretamente.")
-            return ack_resp
+            # Tenta ler a confirmação com um timeout curto (200ms).
+            # Se o dispositivo não responder, 'ack' será None e o código continuará.
+            ack = device.read(64, 200) 
+            if ack and ack[5] != command:
+                config.logger.warning(f"ACK para o comando ({group},{command}) pode ter retornado um comando diferente.")
+            return ack # Retorna o ACK ou None
 
-        # Lógica de Leitura para Múltiplos Pacotes
-        resp = device.read(64, timeout_ms=timeout_ms)
-        if not resp:
-            raise HTTPException(status_code=408, detail="Timeout na leitura do primeiro pacote de resposta HID.")
+        # Para comandos de leitura, esperamos pela resposta completa.
+        response_packet = device.read(64, 5000)
 
-        total_data_size = int.from_bytes(resp[3:5], "little")
-        payload = bytearray(resp[7:7 + total_data_size])
+        if not response_packet:
+            raise HIDCommandError("Timeout: Nenhuma resposta recebida do dispositivo.")
 
+        # Validação do cabeçalho da resposta
+        flags = response_packet[1]
+        error_status = (flags >> 4) & 0x03
+        if error_status == 1:
+            raise HIDCommandError(f"Dispositivo HID reportou um ERRO no comando ({group},{command}).")
+        if error_status == 2:
+            raise HIDCommandError(f"Dispositivo HID reportou estar OCUPADO para o comando ({group},{command}).")
+        
+
+
+        # Processamento do payload
+        total_data_size = int.from_bytes(response_packet[3:5], "little")
+        if total_data_size == 0:
+            return bytearray()
+        
+
+        payload = bytearray(response_packet[7:])
         while len(payload) < total_data_size:
-            chunk = device.read(64, timeout_ms=timeout_ms)
-            if not chunk: break
+            chunk = device.read(64, 5000)
+            if not chunk:
+                break
             payload.extend(chunk)
-
         return payload[:total_data_size]
 
-    except hid.HIDException as e:
-        raise HTTPException(status_code=500, detail=f"Erro de comunicação HID: {e}")
+    except (IOError, OSError) as e:
+        raise HIDCommandError(f"Erro de comunicação HID de baixo nível: {e}")
 
+def _apply_scan_config(device: hid.device):
+    """Cria, serializa e envia a configuração de varredura."""
+    config.logger.info("ETAPA 1: Aplicando configuração de varredura...")
+    scan_cfg = SlewScanConfig()
+    scan_cfg.head.scan_type = 0
+    scan_cfg.head.num_repeats = 6
+    scan_cfg.head.num_sections = 1
+    scan_cfg.section[0].wavelength_start_nm = 900
+    scan_cfg.section[0].wavelength_end_nm = 1700
+    scan_cfg.section[0].width_px = 10
+    scan_cfg.section[0].num_patterns = 228
+    scan_cfg.section[0].exposure_time = 635
 
-def perform_scan_and_read_data(conversion: str | None):
+    buf_size = ctypes.c_uint32(124)
+    buf = (ctypes.c_uint8 * buf_size.value)()
+    status = _lib.dlpspec_scan_write_configuration(ctypes.byref(scan_cfg), buf, ctypes.byref(buf_size))
+    if status != 0: raise ScanFailedError(f"Erro C ao serializar configuração: {status}")
+    
+    _send_command(device, *config.CMD_SCAN_CFG_APPLY, data=bytes(buf), read=False)
+
+def _get_scan_time(device: hid.device):
+    """Solicita o tempo estimado da varredura ao dispositivo."""
+    config.logger.info("ETAPA 2: Lendo tempo estimado...")
+    time_payload = _send_command(device, *config.CMD_READ_SCAN_TIME, read=True)
+    scan_time_ms = int.from_bytes(time_payload, "little")
+    config.logger.info(f"Tempo estimado: {scan_time_ms} ms.")
+    return scan_time_ms
+
+def _wait_for_scan_completion(device: hid.device, scan_time_ms: int):
+    """Aguarda a varredura terminar, fazendo polling do status."""
+    config.logger.info("ETAPA 4: Aguardando conclusão...")
+    timeout_sec = (scan_time_ms // 1000) + 10
+    for i in range(timeout_sec):
+        time.sleep(1.0)
+        status = _send_command(device, *config.CMD_GET_STATUS, read=True)
+        if status and (status[0] & 0x02 == 0):
+            config.logger.info(f"Varredura concluída após {i+1} segundos.")
+            return
+    raise ScanFailedError(f"Timeout: A varredura não terminou em {timeout_sec}s.")
+
+# --- Função Principal de Interface ---
+
+# app/hardware/hid_interface.py
+
+def perform_full_scan() -> dict:
     """
-    (Função principal) Executa o fluxo completo de comunicação HID com polling de status
-    para realizar uma varredura e retornar os dados interpretados.
+    Executa o fluxo completo de varredura, desde abrir até fechar o dispositivo,
+    e retorna os dados interpretados.
     """
+    
     device = None
+    connection_attempts = 5
+    
+    # 1. Conecta ao dispositivo (esta parte está correta).
+    for attempt in range(connection_attempts):
+        try:
+            config.logger.info(f"Tentando conectar ao dispositivo... (Tentativa {attempt + 1}/{connection_attempts})")
+            device = hid.device()
+            device.open(config.DEVICE_VENDOR_ID, config.DEVICE_PRODUCT_ID)
+            device.set_nonblocking(0)
+            config.logger.info("Dispositivo HID aberto com sucesso.")
+            break 
+        except (IOError, OSError) as e:
+            config.logger.error(f"--> ERRO na tentativa {attempt + 1}: {e}")
+            device = None
+            if attempt < connection_attempts - 1:
+                time.sleep(2)
+            else:
+                raise DeviceConnectionError(f"Falha ao conectar no dispositivo após {connection_attempts} tentativas: {e}")
+    
+    if not device:
+        raise DeviceConnectionError("Não foi possível estabelecer uma conexão com o dispositivo.")
+
     try:
-        # Abre o dispositivo
-        device = hid.device()
-        device.open(VENDOR_ID, PRODUCT_ID)
-        device.set_nonblocking(0) # Modo bloqueante simplifica a lógica
-        print("Dispositivo aberto com sucesso.")
-
-        # ETAPA 1: Definir a configuração de varredura ativa (índice 1)
-        print("Definindo a configuração de varredura ativa...")
-        _send_hid_command(device, *CMD_SET_ACTIVE_SCAN_CFG, data=bytes([0x01]), read=False)
-        print("Configuração de varredura definida.")
-
-        # ETAPA 2: Iniciar a varredura
-        print("Iniciando varredura...")
-        _send_hid_command(device, *CMD_PERFORM_SCAN, data=NNO_FILE_SCAN_DATA, read=False)
-        print("Comando de varredura enviado.")
-
-        # ETAPA 3: Aguardar a conclusão da varredura (poll de status)
-        print("Aguardando conclusão da varredura...")
-        for i in range(30): # Timeout de ~30 segundos
-            time.sleep(1.0)
-            status_payload = _send_hid_command(device, *CMD_GET_STATUS, read=True)
-            # O status 'scan in progress' é o bit 1 do byte 0 do payload
-            if status_payload and (status_payload[0] & 0x02 == 0):
-                print(f"Varredura concluída após {i+1} segundos.")
-                break
-        else:
-            raise HTTPException(status_code=504, detail="Timeout aguardando término da varredura.")
-
-        # ETAPA 4: Obter o tamanho dos dados da varredura
-        print("Obtendo o tamanho dos dados da varredura...")
-        size_payload = _send_hid_command(device, *CMD_FILE_GET_READSIZE, data=NNO_FILE_SCAN_DATA, read=True)
-        data_size = int.from_bytes(size_payload, "little")
-        print(f"Tamanho esperado dos dados do espectro: {data_size} bytes.")
-        if data_size == 0:
-            raise HTTPException(status_code=500, detail="Dispositivo reportou 0 bytes para os dados da varredura.")
-
-        # ETAPA 5: Ler os dados completos da varredura
-        print("Lendo os dados da varredura...")
-        full_data = _send_hid_command(device, *CMD_FILE_GET_DATA, read=True)
-        print(f"Total de bytes recebidos: {len(full_data)}.")
-        if len(full_data) < data_size:
-            print(f"AVISO: Foram recebidos {len(full_data)} bytes, mas esperava-se {data_size}.")
-
-        # ETAPA 6: Interpretar os dados
-        interpreted_json = scan_interpret(full_data)
-        data_dict = json.loads(interpreted_json)
-        wavelengths = data_dict.get("wavelength", [])
-        values = data_dict.get("intensity", [])
+        # --- CORREÇÃO APLICADA AQUI ---
+        # REMOVIDO o bloco que ativava a configuração de fábrica para eliminar o conflito.
         
-        if conversion == "absorbance":
-            arr = np.array(values, dtype=np.float64)
-            values = (-np.log10(arr.clip(min=1e-10))).tolist()
+        # O fluxo agora começa diretamente aplicando a sua configuração customizada.
+        _apply_scan_config(device)
+        
+        # Agora, com uma única configuração clara, tentamos ler o tempo.
+        scan_time_ms = _get_scan_time(device)
+        
+        # Checagem de sanidade para o valor retornado.
+        if not (0 < scan_time_ms < 60000): # Tempo de varredura realista (menor que 1 minuto)
+             raise ScanFailedError(f"Tempo estimado inválido ou corrompido: {scan_time_ms} ms")
+        
+        config.logger.info("ETAPA 3: Iniciando varredura...")
+        _send_command(device, *config.CMD_PERFORM_SCAN, data=config.NNO_FILE_SCAN_DATA, read=False)
 
-        return wavelengths, values
+        _wait_for_scan_completion(device, scan_time_ms)
+        
+        config.logger.info("ETAPA 5: Lendo tamanho dos dados...")
+        size_payload = _send_command(device, *config.CMD_FILE_GET_READSIZE, data=config.NNO_FILE_SCAN_DATA, read=True)
+        data_size = int.from_bytes(size_payload, "little")
 
+        # Checagem de sanidade para o tamanho dos dados.
+        if not (0 < data_size < 100000): # Tamanho realista para dados de espectro (aprox. < 100KB)
+            raise ScanFailedError(f"Tamanho de dados inválido ou corrompido: {data_size}")
+
+        config.logger.info(f"Tamanho dos dados: {data_size} bytes.")
+
+        config.logger.info("ETAPA 6: Lendo dados...")
+        raw_data = _send_command(device, *config.CMD_FILE_GET_DATA, data=config.NNO_FILE_SCAN_DATA, read=True)
+        
+        # Dump dos dados para análise, caso precise no futuro.
+        with open("raw_data_dump.bin", "wb") as f:
+            f.write(raw_data)
+
+        config.logger.info("ETAPA 7: Interpretando dados...")
+        return scan_interpret(raw_data)
+
+    except (HIDCommandError, ScanFailedError, SpectrumLibraryError) as e:
+        config.logger.error(f"Erro durante a operação de varredura: {e}")
+        raise e
+    except Exception as e:
+        config.logger.error(f"Erro inesperado durante a varredura: {e}")
+        raise ScanFailedError(f"Erro inesperado: {e}")
     finally:
         if device:
-            print("Fechando dispositivo.")
             device.close()
+            config.logger.info("Dispositivo HID fechado.")
