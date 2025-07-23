@@ -83,9 +83,15 @@ def _apply_scan_config(device: hid.device):
     """Cria, serializa e envia a configuração de varredura."""
     config.logger.info("ETAPA 1: Aplicando configuração de varredura...")
     scan_cfg = SlewScanConfig()
+
+    # --- INICIALIZAÇÃO CORRETA E COMPLETA DO CABEÇALHO ---
     scan_cfg.head.scan_type = 0
     scan_cfg.head.num_repeats = 6
     scan_cfg.head.num_sections = 1
+    # ADICIONADO: Dê um nome à configuração. É um campo obrigatório.
+    scan_cfg.head.config_name = b"Python_Custom_Scan" 
+    
+    # O resto da função continua como está
     scan_cfg.section[0].wavelength_start_nm = 900
     scan_cfg.section[0].wavelength_end_nm = 1700
     scan_cfg.section[0].width_px = 10
@@ -103,8 +109,13 @@ def _get_scan_time(device: hid.device):
     """Solicita o tempo estimado da varredura ao dispositivo."""
     config.logger.info("ETAPA 2: Lendo tempo estimado...")
     time_payload = _send_command(device, *config.CMD_READ_SCAN_TIME, read=True)
-    scan_time_ms = int.from_bytes(time_payload, "little")
+    #scan_time_ms = int.from_bytes(time_payload, "little")
+    scan_time_ms = int.from_bytes(time_payload[:4], "little")
+    if len(time_payload) < 4:
+        raise ScanFailedError(f"Payload de tempo inválido: {time_payload}")
+
     config.logger.info(f"Tempo estimado: {scan_time_ms} ms.")
+    config.logger.debug(f"Bytes recebidos como tempo: {list(time_payload)}")
     return scan_time_ms
 
 def _wait_for_scan_completion(device: hid.device, scan_time_ms: int):
@@ -153,13 +164,14 @@ def perform_full_scan() -> dict:
         raise DeviceConnectionError("Não foi possível estabelecer uma conexão com o dispositivo.")
 
     try:
-        # --- CORREÇÃO APLICADA AQUI ---
-        # REMOVIDO o bloco que ativava a configuração de fábrica para eliminar o conflito.
-        
-        # O fluxo agora começa diretamente aplicando a sua configuração customizada.
+        # O fluxo começa diretamente aplicando a sua configuração customizada.
         _apply_scan_config(device)
         
-        # Agora, com uma única configuração clara, tentamos ler o tempo.
+        # ADICIONADO: Pausa estratégica para o dispositivo processar a configuração.
+        config.logger.info("Aguardando dispositivo processar a configuração...")
+        time.sleep(1.0) # Pausa de 1 segundo.
+
+        # Agora, com o dispositivo pronto, tentamos ler o tempo.
         scan_time_ms = _get_scan_time(device)
         
         # Checagem de sanidade para o valor retornado.
@@ -173,7 +185,15 @@ def perform_full_scan() -> dict:
         
         config.logger.info("ETAPA 5: Lendo tamanho dos dados...")
         size_payload = _send_command(device, *config.CMD_FILE_GET_READSIZE, data=config.NNO_FILE_SCAN_DATA, read=True)
-        data_size = int.from_bytes(size_payload, "little")
+
+        if not size_payload or len(size_payload) < 4:
+            raise ScanFailedError(f"Resposta inválida ao tentar obter tamanho dos dados: {size_payload}")
+
+        data_size = int.from_bytes(size_payload[:4], "little")
+
+        if not (0 < data_size < 100000):  # limite realista: 100KB
+            raise ScanFailedError(f"Tamanho de dados inválido ou corrompido: {data_size}")
+
 
         # Checagem de sanidade para o tamanho dos dados.
         if not (0 < data_size < 100000): # Tamanho realista para dados de espectro (aprox. < 100KB)
