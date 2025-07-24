@@ -3,6 +3,7 @@
 import ctypes
 import json
 import os
+from app.core import config
 
 # --- Exceções Customizadas ---
 class SpectrumLibraryError(Exception):
@@ -27,15 +28,15 @@ class SlewScanSection(ctypes.Structure):
         ("wavelength_start_nm", ctypes.c_uint16),
         ("wavelength_end_nm", ctypes.c_uint16),
         ("num_patterns", ctypes.c_uint16),
-        ("exposure_time", ctypes.c_uint32), # CORRIGIDO: Este campo é maior.
+        ("exposure_time", ctypes.c_uint16), # CORRIGIDO: Deve ser uint16.
     ]
 
 class SlewScanConfigHead(ctypes.Structure):
     _fields_ = [
         ("scan_type", ctypes.c_uint8),
         ("scanConfigIndex", ctypes.c_uint16),
-        ("ScanConfig_serial_number", ctypes.c_char * 9), # CORRIGIDO: Tamanho e tipo
-        ("config_name", ctypes.c_char * 41),             # CORRIGIDO: Tamanho e tipo
+        ("ScanConfig_serial_number", ctypes.c_char * 8), # CORRIGIDO: Tamanho 8
+        ("config_name", ctypes.c_char * 40),             # CORRIGIDO: Tamanho 40
         ("num_repeats", ctypes.c_uint16),
         ("num_sections", ctypes.c_uint8),
     ]
@@ -50,7 +51,7 @@ class ScanResults(ctypes.Structure):
     # Esta estrutura complexa define como os dados de resultado são decodificados.
     _fields_ = [
         ('header_version', ctypes.c_uint32),
-        ('scan_name', ctypes.c_char * 41), # CORRIGIDO: Tamanho
+        ('scan_name', ctypes.c_char * 20),
         ('year', ctypes.c_uint8),
         ('month', ctypes.c_uint8),
         ('day', ctypes.c_uint8),
@@ -65,14 +66,14 @@ class ScanResults(ctypes.Structure):
         ('scanDataIndex', ctypes.c_uint32),
         ('ShiftVectorCoeffs', ctypes.c_double * 3),
         ('PixelToWavelengthCoeffs', ctypes.c_double * 3),
-        ('serial_number', ctypes.c_char * 9), # CORRIGIDO: Tamanho
+        ('serial_number', ctypes.c_char * 8),
         ('adc_data_length', ctypes.c_uint16),
         ('black_pattern_first', ctypes.c_uint8),
         ('black_pattern_period', ctypes.c_uint8),
         ('pga', ctypes.c_uint8),
         ('cfg', SlewScanConfig),
-        ('wavelength', ctypes.POINTER(ctypes.c_double)),
-        ('intensity', ctypes.POINTER(ctypes.c_int32)), # CORRIGIDO: Tipo de dado
+        ('wavelength', ctypes.c_double * 228),
+        ('intensity', ctypes.c_int * 228),
         ('length', ctypes.c_int),
     ]
 
@@ -97,17 +98,30 @@ def scan_interpret(raw_bytes: bytes) -> dict:
     if not raw_bytes:
         raise SpectrumLibraryError("Dados brutos para interpretação estão vazios.")
         
-    # buffer = ctypes.create_string_buffer(raw_bytes, len(raw_bytes))
-    buffer = ctypes.create_string_buffer(bytes(raw_bytes), len(raw_bytes))
+    raw_bytes = bytes(raw_bytes)  # Converte bytearray para bytes
+    config.logger.info(f"Preparando buffer para DLL: tamanho {len(raw_bytes)} bytes")
+    buffer = ctypes.create_string_buffer(raw_bytes, len(raw_bytes))
+    config.logger.info("Buffer criado com sucesso")
 
     results = ScanResults()
+    config.logger.info("Estrutura ScanResults inicializada")
     
-    status = _lib.dlpspec_scan_interpret(ctypes.byref(buffer), len(raw_bytes), ctypes.byref(results))
-    
-    if status != 0:
-        raise SpectrumLibraryError(f"A função C dlpspec_scan_interpret falhou com o código de erro: {status}")
+    try:
+        config.logger.info("Chamando dlpspec_scan_interpret...")
+        status = _lib.dlpspec_scan_interpret(ctypes.byref(buffer), len(raw_bytes), ctypes.byref(results))
+        config.logger.info(f"DLL retornou status: {status}")
+        if status != 0:
+            raise SpectrumLibraryError(f"A função C dlpspec_scan_interpret falhou com o código de erro: {status}")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        config.logger.error(f"Exceção capturada na chamada da DLL: {e}")
+        raise
 
-    # Extrai os dados dos ponteiros para listas Python
+    config.logger.info(f"Dados interpretados: length={results.length}, pga={results.pga}")
+    if results.length <= 0 or results.length > 500:
+        raise SpectrumLibraryError(f"Comprimento de dados inválido após interpretação: {results.length}")
+    
     wavelengths = [results.wavelength[i] for i in range(results.length)]
     intensities = [results.intensity[i] for i in range(results.length)]
 
