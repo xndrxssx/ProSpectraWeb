@@ -47,6 +47,12 @@ class SlewScanConfig(ctypes.Structure):
         ("section", SlewScanSection * 5),
     ]
 
+class calibCoeffs(ctypes.Structure):
+    _fields_ = [
+        ("ShiftVectorCoeffs", ctypes.c_double * 3),
+        ("PixelToWavelengthCoeffs", ctypes.c_double * 3),
+    ]
+
 class ScanResults(ctypes.Structure):
     # Esta estrutura complexa define como os dados de resultado são decodificados.
     _fields_ = [
@@ -64,16 +70,15 @@ class ScanResults(ctypes.Structure):
         ('humidity_hundredths', ctypes.c_uint16),
         ('lamp_pd', ctypes.c_uint16),
         ('scanDataIndex', ctypes.c_uint32),
-        ('ShiftVectorCoeffs', ctypes.c_double * 3),
-        ('PixelToWavelengthCoeffs', ctypes.c_double * 3),
+        ('calibration_coeffs', calibCoeffs),
         ('serial_number', ctypes.c_char * 8),
         ('adc_data_length', ctypes.c_uint16),
         ('black_pattern_first', ctypes.c_uint8),
         ('black_pattern_period', ctypes.c_uint8),
         ('pga', ctypes.c_uint8),
         ('cfg', SlewScanConfig),
-        ('wavelength', ctypes.c_double * 228),
-        ('intensity', ctypes.c_int * 228),
+        ('wavelength', ctypes.c_double * 864),
+        ('intensity', ctypes.c_int * 864),
         ('length', ctypes.c_int),
     ]
 
@@ -118,8 +123,8 @@ def scan_interpret(raw_bytes: bytes) -> dict:
         config.logger.error(f"Exceção capturada na chamada da DLL: {e}")
         raise
 
-    config.logger.info(f"Dados interpretados: length={results.length}, pga={results.pga}")
-    if results.length <= 0 or results.length > 500:
+    config.logger.info(f"Dados interpretados: length={results.length}, pga={results.pga}, header_version={results.header_version}, serial={results.serial_number.decode('utf-8', errors='ignore')}")
+    if results.length <= 0 or results.length > 864:
         raise SpectrumLibraryError(f"Comprimento de dados inválido após interpretação: {results.length}")
     
     wavelengths = [results.wavelength[i] for i in range(results.length)]
