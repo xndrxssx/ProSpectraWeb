@@ -1,48 +1,41 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Cache de dependências e módulos instalados
+# Ignora QUALQUER pasta node_modules no projeto (ex: ./node_modules, ./frontend/node_modules)
+node_modules/
+backend/venv
+# Arquivos de build e saída de compilação
+# Ignora a pasta de build do Next.js
+.next/
+.vercel/
+# Pastas de build e distribuição comuns
+build/
+dist/
+.out/
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# Variáveis de Ambiente e Segredos
+# NUNCA envie segredos para o Git.
+# O padrão *.env* ignora .env, .env.local, .env.production, etc. em qualquer pasta.
+*.env*
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
+# Logs e arquivos de depuração
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
+*.log
 
-# env files (can opt-in for committing if needed)
-.env*
+# Arquivos de banco de dados locais (ex: SQLite para desenvolvimento)
+*.sqlite
+*.sqlite3
 
-# vercel
-.vercel
+# Arquivos de Sistema Operacional
+.DS_Store
+Thumbs.db
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# Arquivos de configuração de Editores e IDEs
+.vscode/
+.idea/
 
-# python
-venv/
-*.pyc
-__pycache__/
-env/
-/Referencias

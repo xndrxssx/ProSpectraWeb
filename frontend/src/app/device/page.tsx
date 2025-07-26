@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import CustomSidebar from "@/components/Sidebar";
 import withAuth from "@/components/withAuth";
 import Select, { StylesConfig, Theme } from "react-select";
-import { Variety } from "@prisma/client";
+import { Variety } from "@/generated/client";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -24,6 +24,8 @@ function SentDataDevice() {
       window_length: 5, polyorder: 2, deriv: 0,
       delta: 1, axis: -1, mode: "interp", cval: 0,
     },
+    modo: "",
+    additionalParam: "",
   });
   const [tableData, setTableData] = useState<number[][]>([]);
   const [connected, setConnected] = useState(false);
@@ -38,6 +40,13 @@ function SentDataDevice() {
   ];
 
   const [variety, setVariedades] = useState<Variety[]>([]);
+
+  // Add mode options
+  const modeOptions: Option[] = [
+    { label: "Absorbância", value: "absorbancia" },
+    { label: "Reflectância", value: "reflectancia" },
+    { label: "Intensidade", value: "intensidade" },
+  ];
 
   // Chama API para conectar ao espectrômetro
   const handleConnect = async () => {
@@ -65,8 +74,8 @@ function SentDataDevice() {
 
   // Chama API para ler dados do espectrômetro
   const handleReadData = async () => {
-    if (!formData.nome_reg || !formData.variedade || !formData.data || !formData.local) {
-      toast.error("Preencha todos os campos antes de ler.");
+    if (!formData.nome_reg || !formData.variedade || !formData.data || !formData.local || !formData.modo) {
+      toast.error("Preencha todos os campos, incluindo o modo, antes de ler.");
       return;
     }
     try {
@@ -77,7 +86,9 @@ function SentDataDevice() {
           name: formData.nome_reg,
           local: formData.local,
           varietyId: Number(formData.variedade),
-          data: formData.data
+          data: formData.data,
+          conversion: formData.modo,
+          ...(formData.additionalParam && { conversionParam: formData.additionalParam }),
         })
       });
       const result = await res.json();
@@ -130,6 +141,8 @@ function SentDataDevice() {
       setFormData({
         nome_reg: "", variedade: "", data: "", local: "", filtro: "nenhum",
         sgParams: { window_length: 5, polyorder: 2, deriv: 0, delta: 1, axis: -1, mode: "interp", cval: 0 },
+        modo: "",
+        additionalParam: "",
       });
     } catch (err) {
       console.error(err);
@@ -207,7 +220,7 @@ function SentDataDevice() {
                 instanceId="variedade-select"
                 options={varietyOptions}
                 value={varietyOptions.find(o => o.value === formData.variedade) || null}
-                onChange={(opt) => setFormData(f => ({ ...f, variedade: opt?.value || "" }))}
+                onChange={(opt: Option | null) => setFormData(f => ({ ...f, variedade: opt?.value || "" }))}
                 isClearable
                 placeholder="Selecione a variedade"
                 styles={customStyles}
@@ -240,6 +253,34 @@ function SentDataDevice() {
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium mb-2">Modo de Leitura:</label>
+              <Select
+                instanceId="modo-select"
+                options={modeOptions}
+                value={modeOptions.find(o => o.value === formData.modo) || null}
+                onChange={(opt: Option | null) => setFormData(f => ({ ...f, modo: opt?.value || "" }))}
+                isClearable
+                placeholder="Selecione o modo"
+                styles={customStyles}
+                theme={customTheme}
+              />
+            </div>
+
+            {(formData.modo === "absorbancia" || formData.modo === "reflectancia") && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Parâmetro Adicional para {formData.modo.charAt(0).toUpperCase() + formData.modo.slice(1)}:</label>
+                <input
+                  type="text"
+                  name="additionalParam"
+                  value={formData.additionalParam}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                  placeholder="Informe o parâmetro adicional"
+                />
+              </div>
+            )}
+
             {/* Botões para conectar e ler do espectrômetro */}
             <div className="mt-6 flex space-x-4">
               <button
@@ -252,7 +293,7 @@ function SentDataDevice() {
               <button
                 onClick={handleReadData}
                 className="flex-1 bg-[#165a16] text-white py-2 px-4 rounded-lg hover:bg-[#1f7e1f]"
-                disabled={!connected}
+                disabled={!connected || !formData.modo}
               >
                 Realizar Leitura
               </button>
@@ -273,7 +314,7 @@ function SentDataDevice() {
                 instanceId="filtro-select"
                 options={filterOptions}
                 value={filterOptions.find(o => o.value === formData.filtro) || null}
-                onChange={opt => setFormData(f => ({ ...f, filtro: opt?.value || "nenhum" }))}
+                onChange={(opt: Option | null) => setFormData(f => ({ ...f, filtro: opt?.value || "nenhum" }))}
                 isClearable={false}
                 placeholder="Selecione um filtro"
                 styles={customStyles}
@@ -293,7 +334,7 @@ function SentDataDevice() {
                       id="window_length"
                       name="window_length"
                       value={formData.sgParams.window_length}
-                      onChange={(e) => {
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                         const value = e.target.value ? +e.target.value : 0;
                         setFormData((prev) => ({
                           ...prev,
@@ -313,7 +354,7 @@ function SentDataDevice() {
                       id="polyorder"
                       name="polyorder"
                       value={formData.sgParams.polyorder}
-                      onChange={(e) => {
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                         const value = e.target.value ? +e.target.value : 0;
                         setFormData((prev) => ({
                           ...prev,
@@ -333,7 +374,7 @@ function SentDataDevice() {
                       id="deriv"
                       name="deriv"
                       value={formData.sgParams.deriv}
-                      onChange={(e) => {
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                         const value = e.target.value ? +e.target.value : 0;
                         setFormData((prev) => ({
                           ...prev,

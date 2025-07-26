@@ -50,8 +50,23 @@ class RawSpectrumRequest(BaseModel):
     varietyId: int
     data: str
     conversion: Optional[str] = None
+    conversionParam: Optional[str] = None
 
 class RawSpectrumResponse(BaseModel):
+    ok: bool
+    rawId: str
+    wavelengths: list[float]
+    values: list[float]
+
+class ScanAndSaveRequest(BaseModel):
+    name: str
+    local: str
+    varietyId: int
+    data: str
+    conversion: str  # 'absorbancia', 'reflectancia', 'intensidade'
+    conversionParam: Optional[str] = None  # Parâmetro de referência para absorbância/reflectância
+
+class ScanAndSaveResponse(BaseModel):
     ok: bool
     rawId: str
     wavelengths: list[float]
