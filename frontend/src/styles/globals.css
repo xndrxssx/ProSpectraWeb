@@ -4,7 +4,7 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  background-color: rgb(234, 255, 234);
+  background-color: #eaeaea; /* Cinza claro em vez de verde */
 }
 
 h1, h2, h3, p {
@@ -108,5 +108,18 @@ h1, h2, h3, p {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Garantir que dropdowns do react-select tenham fundo branco */
+.css-1nmdiq5-menu {
+  background-color: white !important;
+}
+
+.css-1jqq78o-placeholder {
+  background-color: white !important;
+}
+
+.css-1dimb5e-singleValue {
+  background-color: white !important;
 }
 

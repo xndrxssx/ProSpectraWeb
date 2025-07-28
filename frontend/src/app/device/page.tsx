@@ -31,6 +31,10 @@ function SentDataDevice() {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState("");
   const [spectralData, setSpectralData] = useState<string | null>(null);
+  const [calibrationValue, setCalibrationValue] = useState<number | null>(null);
+  const [isCalibrating, setIsCalibrating] = useState(false);
+  const [calibrations, setCalibrations] = useState<any[]>([]);
+  const [selectedCalibration, setSelectedCalibration] = useState<any>(null);
 
   const filterOptions: Option[] = [
     { label: "Nenhum", value: "nenhum" },
@@ -72,12 +76,59 @@ function SentDataDevice() {
     }
   };
 
+  // Chama API para calibrar o espectrômetro
+  const handleCalibrate = async () => {
+    if (!connected) {
+      toast.error("Conecte o espectrômetro antes de calibrar.");
+      return;
+    }
+    
+    setIsCalibrating(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/calibrate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const result = await res.json();
+      
+      if (result.ok) {
+        setCalibrationValue(result.reference_value);
+        setSelectedCalibration({
+          calibration_id: result.calibration_id,
+          reference_value: result.reference_value,
+          timestamp: Date.now()
+        });
+        toast.success(`Calibração realizada! Valor de referência: ${result.reference_value.toFixed(2)}`);
+        // Preenche automaticamente o campo de parâmetro adicional se necessário
+        if (formData.modo === "absorbancia" || formData.modo === "reflectancia") {
+          setFormData(prev => ({ ...prev, additionalParam: result.reference_value.toString() }));
+        }
+        // Recarrega a lista de calibrações
+        loadCalibrations();
+      } else {
+        toast.error("Falha na calibração: " + (result.error || ""));
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao calibrar o dispositivo.");
+    } finally {
+      setIsCalibrating(false);
+    }
+  };
+
   // Chama API para ler dados do espectrômetro
   const handleReadData = async () => {
     if (!formData.nome_reg || !formData.variedade || !formData.data || !formData.local || !formData.modo) {
       toast.error("Preencha todos os campos, incluindo o modo, antes de ler.");
       return;
     }
+    
+    // Verifica se precisa de calibração para absorbância/reflectância
+    if ((formData.modo === "absorbancia" || formData.modo === "reflectancia") && !calibrationValue) {
+      toast.error("Realize a calibração antes de fazer leituras de " + formData.modo + ".");
+      return;
+    }
+    
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/scan_and_save`, {
         method: "POST",
@@ -155,13 +206,13 @@ function SentDataDevice() {
     control: (base) => ({ ...base, borderRadius: 8, padding: "0.25rem" }),
     option:  (base, state) => ({
       ...base,
-      background: state.isFocused ? "#e6ffe6" : "white",
+      background: state.isFocused ? "#e6ffe6" : "white", // Verde claro no hover
       color: "#001E01",
     }),
   };
   const customTheme = (theme: Theme) => ({
     ...theme,
-    colors: { ...theme.colors, primary25: "#e6ffe6", primary: "#165a16" },
+    colors: { ...theme.colors, primary25: "#e6ffe6", primary: "#165a16" }, // Verde claro no hover
     borderRadius: 8,
   });
 
@@ -176,10 +227,25 @@ function SentDataDevice() {
     label: v.name,
     value: v.id.toString(),
   }));
+
+  // Carrega calibrações existentes
+  const loadCalibrations = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/calibrations`);
+      const data = await response.json();
+      if (data.ok) {
+        setCalibrations(data.calibrations);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar calibrações:", error);
+    }
+  };
+
   useEffect(() => {
     const fetchVariedades = async () => {
       try {
-        const response = await fetch("/api/edit-variety");
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+        const response = await fetch(`${apiUrl}/api/edit-variety`);
         const data = await response.json();
         setVariedades(data);
       } catch (error) {
@@ -188,14 +254,15 @@ function SentDataDevice() {
       }
     };
     fetchVariedades();
+    loadCalibrations();
   }, []);
 
   return (
     <div className="min-h-screen w-full flex bg-[#eaeaea] text-[#001E01]">
       <CustomSidebar />
       <ToastContainer />
-      <main className="flex-1 flex items-center justify-center">
-        <div className="bg-white/10 max-w-lg w-full backdrop-blur-sm rounded-lg p-8 shadow-lg">
+      <main className="flex-1 flex justify-center mt-10 mb-20">
+        <div className="bg-white/10 w-full max-w-2xl max-h-full">
           <h1 className="text-2xl font-bold mb-4 text-center">
             Enviar Dados Espectrais
           </h1>
@@ -267,17 +334,66 @@ function SentDataDevice() {
               />
             </div>
 
+            {/* Seção de Calibração */}
             {(formData.modo === "absorbancia" || formData.modo === "reflectancia") && (
-              <div>
-                <label className="block text-sm font-medium mb-2">Parâmetro Adicional para {formData.modo.charAt(0).toUpperCase() + formData.modo.slice(1)}:</label>
-                <input
-                  type="text"
-                  name="additionalParam"
-                  value={formData.additionalParam}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-lg"
-                  placeholder="Informe o parâmetro adicional"
-                />
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h3 className="text-sm font-medium text-blue-800 mb-2">
+                  Calibração para {formData.modo.charAt(0).toUpperCase() + formData.modo.slice(1)}
+                </h3>
+                <p className="text-xs text-blue-600 mb-3">
+                  Para leituras de {formData.modo}, é necessário realizar uma calibração para obter o valor de referência (I0).
+                </p>
+                
+                {/* Calibrações disponíveis */}
+                {calibrations.length > 0 && (
+                  <div className="mb-3">
+                    <label className="block text-xs font-medium text-blue-700 mb-1">
+                      Calibrações disponíveis:
+                    </label>
+                    <select
+                      className="w-full p-2 text-xs border border-blue-300 rounded"
+                      value={selectedCalibration?.calibration_id || ""}
+                      onChange={(e) => {
+                        const calib = calibrations.find(c => c.calibration_id === e.target.value);
+                        if (calib) {
+                          setSelectedCalibration(calib);
+                          setCalibrationValue(calib.reference_value);
+                          setFormData(prev => ({ ...prev, additionalParam: calib.reference_value.toString() }));
+                        }
+                      }}
+                    >
+                      <option value="">Selecione uma calibração...</option>
+                      {calibrations.map((calib) => (
+                        <option key={calib.calibration_id} value={calib.calibration_id}>
+                          {new Date(calib.timestamp * 1000).toLocaleString()} - Ref: {calib.reference_value.toFixed(2)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                
+                {calibrationValue ? (
+                  <div className="bg-green-50 p-3 rounded border border-green-200">
+                    <p className="text-sm text-green-800">
+                      <strong>Valor de referência selecionado:</strong> {calibrationValue.toFixed(2)}
+                    </p>
+                    <button
+                      onClick={handleCalibrate}
+                      className="mt-2 text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                      disabled={isCalibrating}
+                    >
+                      {isCalibrating ? "Calibrando..." : "Nova Calibração"}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleCalibrate}
+                    className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
+                    disabled={!connected || isCalibrating}
+                  >
+                    {isCalibrating ? "Realizando Calibração..." : "Realizar Calibração"}
+                  </button>
+                )}
               </div>
             )}
 

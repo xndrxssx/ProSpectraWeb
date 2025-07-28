@@ -10,6 +10,11 @@ export default function useAuth() {
 
   const setToken = (token: string) => {
     try {
+      // Salva o token no localStorage
+      localStorage.setItem('token', token);
+      
+      // Os dados do usuário serão carregados pelo withAuth quando validar o token
+      // Aqui apenas decodificamos para mostrar informações básicas
       const parts = token.split('.');
       if (parts.length === 3) {
         const decodedToken = JSON.parse(atob(parts[1]));
@@ -18,9 +23,6 @@ export default function useAuth() {
         // Atualiza o estado com as informações do token
         setIsAdmin(decodedToken.userType === 'admin');
         setUserType(decodedToken.userType);
-        
-        // Salva o token no localStorage
-        localStorage.setItem('token', token);
       } else {
         console.error('Token JWT inválido');
       }
@@ -32,6 +34,7 @@ export default function useAuth() {
   const handleLogout = () => {
     // Limpar dados de autenticação
     localStorage.removeItem('token');
+    localStorage.removeItem('userData');
     setIsAdmin(false);
     setUserType(null);
   };

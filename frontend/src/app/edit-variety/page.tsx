@@ -27,7 +27,8 @@ function EditVariety() {
 
   const fetchVarieties = async () => {
     try {
-      const response = await fetch("/api/edit-variety");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiUrl}/api/edit-variety`);
       const data = await response.json();
       setVariedades(data);
     } catch (error) {
@@ -57,10 +58,11 @@ function EditVariety() {
     };
 
     try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
       let response;
       if (editando) {
         bodyData.id = editando.id; // Incluir o ID se estiver editando
-        response = await fetch("/api/edit-variety", {
+        response = await fetch(`${apiUrl}/api/edit-variety`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -68,7 +70,7 @@ function EditVariety() {
           body: JSON.stringify(bodyData),
         });
       } else {
-        response = await fetch("/api/edit-variety", {
+        response = await fetch(`${apiUrl}/api/edit-variety`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -104,7 +106,8 @@ function EditVariety() {
   const handleDelete = async (id: number) => {
     if (confirm("Tem certeza que deseja deletar esta variedade?")) {
       try {
-        const response = await fetch("/api/edit-variety", {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+        const response = await fetch(`${apiUrl}/api/edit-variety`, {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",

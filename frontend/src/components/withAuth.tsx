@@ -1,7 +1,7 @@
 // components/withAuth.tsx
 'use client';
 import { useRouter } from "next/navigation";
-import { useEffect, ReactNode } from "react";
+import { useEffect, useState, ReactNode } from "react";
 
 interface Props {
   children?: ReactNode;
@@ -9,15 +9,25 @@ interface Props {
 
 interface DecodedToken {
   userType: string; // A propriedade userType no token
+  exp: number; // Timestamp de expiração
+  sub: string; // Subject (username)
 }
 
 const withAuth = <P extends object>(Component: React.ComponentType<P>, restrictedRoutes: string[] = []) => {
   const AuthHOC = (props: P) => {
     const router = useRouter();
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const [isClient, setIsClient] = useState(false);
 
     useEffect(() => {
-      if (typeof window !== "undefined") {
+      setIsClient(true);
+    }, []);
+
+    useEffect(() => {
+      if (!isClient) return;
+
+      const validateToken = async () => {
+        const token = localStorage.getItem("token");
+        
         // Se não houver token, redireciona para a página de login
         if (!token) {
           router.push("/login");
@@ -25,29 +35,53 @@ const withAuth = <P extends object>(Component: React.ComponentType<P>, restricte
         }
 
         try {
-          // Dividir o token em partes: header, payload, signature
-          const parts = token.split('.');
-          if (parts.length === 3) {
-            // Decodifica o payload (segunda parte) do token usando atob
-            const decodedToken: DecodedToken = JSON.parse(atob(parts[1]));
-            console.log('Decoded Token:', decodedToken);
-
-            // Verifica se o tipo de usuário é restrito para a rota atual
-            const currentPath = window.location.pathname;
-            if (restrictedRoutes.includes(currentPath) && decodedToken.userType === "prod") {
-              alert("Você não tem permissão para acessar esta página.");
-              router.push("/home"); // Redireciona para a página inicial ou outra rota
+          // Validar token com o backend
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+          const response = await fetch(`${apiUrl}/api/auth/me`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
             }
-          } else {
-            throw new Error("Token inválido");
+          });
+
+          if (!response.ok) {
+            throw new Error("Token inválido ou expirado");
           }
+
+          const userData = await response.json();
+          
+          // Verificar permissões baseado no userType
+          const currentPath = window.location.pathname;
+          if (restrictedRoutes.includes(currentPath) && userData.userType === "prod") {
+            alert("Você não tem permissão para acessar esta página.");
+            router.push("/home");
+            return;
+          }
+
+          // Armazenar dados do usuário no localStorage para uso na sidebar
+          localStorage.setItem("userData", JSON.stringify(userData));
+          
         } catch (error) {
-          console.error("Erro ao decodificar o token:", error);
-          localStorage.removeItem("token"); // Remove o token inválido
-          router.push("/login"); // Redireciona para a página de login
+          console.error("Erro ao validar token:", error);
+          localStorage.removeItem("token");
+          localStorage.removeItem("userData");
+          router.push("/login");
         }
-      }
-    }, [token, router]);
+      };
+
+      validateToken();
+    }, [isClient, router]);
+
+    // Renderiza o componente apenas no cliente para evitar problemas de hidratação
+    if (!isClient) {
+      return <div className="min-h-screen w-full flex bg-[#eaeaea] text-[#001E01]">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#165a16] mx-auto mb-4"></div>
+            <p>Carregando...</p>
+          </div>
+        </div>
+      </div>;
+    }
 
     return <Component {...props} />;
   };

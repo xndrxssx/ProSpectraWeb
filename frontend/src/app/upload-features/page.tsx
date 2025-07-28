@@ -200,14 +200,14 @@ function SaveWavelengths() {
       control: (base) => ({ ...base, borderRadius: 8, padding: "0.25rem" }),
       option:  (base, state) => ({
         ...base,
-        background: state.isFocused ? "#e6ffe6" : "white",
+        background: state.isFocused ? "#f3f4f6" : "white", // Cinza claro em vez de verde
         color: "#001E01",
       }),
     };
     
     const customTheme = (theme: Theme) => ({
       ...theme,
-      colors: { ...theme.colors, primary25: "#e6ffe6", primary: "#165a16" },
+      colors: { ...theme.colors, primary25: "#f3f4f6", primary: "#165a16" }, // Cinza claro em vez de verde
       borderRadius: 8,
     });
 

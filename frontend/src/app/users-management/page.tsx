@@ -31,15 +31,19 @@ function ManageUsers() {
     const fetchUsers = async () => {
       try {
         toast.info("Carregando usuários...");
-        const response = await fetch('/api/users-management');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+        const response = await fetch(`${apiUrl}/api/users/`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
         setUsers(data);
         toast.success("Usuários carregados com sucesso!");
       } catch (error) {
         console.error("Erro ao buscar usuários:", error);
         toast.error("Erro ao carregar usuários.");
-      } finally {
-        toast.dismiss();
       }
     };
 
@@ -112,7 +116,8 @@ function ManageUsers() {
     if (!validateUserData()) return;
 
     try {
-      const response = await fetch('/api/users-management', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiUrl}/api/users/`, {
         method: 'POST',
         body: JSON.stringify(newUser),
         headers: {
@@ -139,9 +144,10 @@ function ManageUsers() {
 
   const handleUpdateUserType = async (userId: number, newUserType: string) => {
     try {
-      const response = await fetch('/api/users-management', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiUrl}/api/users/${userId}`, {
         method: 'PUT',
-        body: JSON.stringify({ id: userId, userType: newUserType }),
+        body: JSON.stringify({ userType: newUserType }),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -165,9 +171,9 @@ function ManageUsers() {
 
   const handleDeleteUser = async (userId: number) => {
     try {
-      const response = await fetch('/api/users-management', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiUrl}/api/users/${userId}`, {
         method: 'DELETE',
-        body: JSON.stringify({ id: userId }),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -191,9 +197,9 @@ function ManageUsers() {
       <ToastContainer />
       {/* Container principal */}
       <div className="flex-1 flex items-center justify-center">
-        <div className="flex w-full max-w-4xl">
+        <div className="flex w-full max-w-6xl gap-8 justify-center">
           {/* Formulário para adicionar usuário */}
-          <div className="bg-white/10 w-2/3 backdrop-blur-sm rounded-lg p-8 shadow-lg">
+          <div className="bg-white/10 w-1/3 max-w-md backdrop-blur-sm rounded-lg p-8 shadow-lg">
             <h2 className="text-2xl font-bold mb-4 text-center">Adicionar Usuário</h2>
   
             <form onSubmit={handleAddUser} className="space-y-4">
@@ -243,7 +249,7 @@ function ManageUsers() {
             </form>
           </div>
           {/* Lista de usuários */}
-          <div className="w-2/3 ml-8 bg-white/10 backdrop-blur-sm rounded-lg p-8 shadow-lg">
+          <div className="bg-white/10 w-1/3 max-w-md backdrop-blur-sm rounded-lg p-8 shadow-lg">
             <h2 className="text-xl font-bold mb-4">Usuários Cadastrados</h2>
             <div className=""> 
               {users.length > 0 ? (

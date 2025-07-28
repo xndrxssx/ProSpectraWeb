@@ -44,3 +44,7 @@ CMD_SET_HIBERNATE_STATUS = (0x03, 0x0E)
 
 # --- Parâmetros de Comando ---
 NNO_FILE_SCAN_DATA = bytes([0x00])
+
+# --- Configurações JWT ---
+JWT_SECRET_KEY = "your-secret-key-here-change-in-production"
+JWT_ALGORITHM = "HS256"

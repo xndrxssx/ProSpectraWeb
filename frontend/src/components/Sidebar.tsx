@@ -5,13 +5,14 @@ import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarGroupC
 import { AudioWaveform, HardDriveUpload, ChartColumn, History, FileText, SearchCheck, Users, LogOut } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@radix-ui/react-collapsible";
 import Link from "next/link"; // Usando o Link do Next.js
-import { useState } from "react"; // Importando o hook useState
+import { useState, useEffect } from "react"; // Importando o hook useState
 import { useRouter } from "next/navigation";
 import useAuth from '@/hooks/useAuth'; // Importando o hook useAuth
 
 export function CustomSidebar({ children }: { children?: React.ReactNode }) {
   // Gerencia o estado de qual submenu está aberto
   const [openCollapsible, setOpenCollapsible] = useState<string | null>(null);
+  const [userData, setUserData] = useState<any>(null);
 
   // Função para alternar o submenu
   const handleCollapsibleToggle = (id: string) => {
@@ -20,9 +21,18 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
 
   const router = useRouter();
 
+  // Carregar dados do usuário do localStorage
+  useEffect(() => {
+    const storedUserData = localStorage.getItem("userData");
+    if (storedUserData) {
+      setUserData(JSON.parse(storedUserData));
+    }
+  }, []);
+
   const handleLogout = () => {
     // Limpar dados de autenticação
-    localStorage.removeItem("token"); // Ou use cookies, conforme necessário
+    localStorage.removeItem("token");
+    localStorage.removeItem("userData");
 
     // Redirecionar para a página de login
     router.push("/login");
@@ -30,9 +40,13 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
 
   const { isAdmin, userType, setToken} = useAuth();
 
+  // Determinar se é admin baseado nos dados do usuário
+  const isUserAdmin = userData?.userType === "admin" || isAdmin;
+
   // Exemplo de como utilizar
   console.log("isAdmin:", isAdmin);
   console.log("userType:", userType);
+  console.log("userData:", userData);
 
   return (
     <Sidebar className="w-[230px]">
@@ -105,8 +119,8 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-              {/* Mostrar opções de admin apenas se isAdmin for verdadeiro */}
-              {isAdmin && (
+              {/* Mostrar opções de admin apenas se isUserAdmin for verdadeiro */}
+              {isUserAdmin && (
                 <>
                   {/* Gerenciar usuários */}
                   <SidebarMenuItem>

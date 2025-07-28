@@ -171,7 +171,8 @@ function EditModel() {
   useEffect(() => {
     const fetchVarieties = async () => {
       try {
-        const response = await fetch("/api/edit-variety");
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+        const response = await fetch(`${apiUrl}/api/edit-variety`);
         const data = await response.json();
         // console.log("Variedades encontradas no banco:", data);
         setVarieties(data);
