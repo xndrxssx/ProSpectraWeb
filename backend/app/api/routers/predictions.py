@@ -45,20 +45,43 @@ async def save_prediction(request: SavePredictionRequest):
 @router.get("/get-spectral-data/")
 async def list_spectral_data():
     spectral_data_list = await crud_spectrum.get_all_spectra()
-    return [
-        {
-            "id": data.id, "name": data.name, "variety": data.variety,
-            "datetime": data.datetime.isoformat(), "local": data.local,
-            "filter": data.filter, "graph": data.graph,
-        } for data in spectral_data_list
-    ]
+    result = []
+    
+    for data in spectral_data_list:
+        # Buscar o nome da variedade pelo ID
+        variety_name = await crud_spectrum.get_variety_name_by_id(data.variety)
+        
+        result.append({
+            "id": data.id, 
+            "name": data.name, 
+            "variety": variety_name or f"Variedade {data.variety}",  # Fallback se não encontrar
+            "datetime": data.datetime.isoformat(), 
+            "local": data.local,
+            "filter": data.filter, 
+            "graph": data.graph,
+        })
+    
+    return result
 
 @router.get("/get-spectral-data/{id}")
 async def get_spectral_data(id: int):
     spectral_data = await crud_spectrum.get_spectra_by_id(id)
     if not spectral_data:
         raise HTTPException(status_code=404, detail="Dado espectral não encontrado")
-    return spectral_data
+    
+    # Buscar o nome da variedade pelo ID
+    variety_name = await crud_spectrum.get_variety_name_by_id(spectral_data.variety)
+    
+    # Retornar com o nome da variedade em vez do ID
+    return {
+        "id": spectral_data.id,
+        "name": spectral_data.name,
+        "variety": variety_name or f"Variedade {spectral_data.variety}",
+        "datetime": spectral_data.datetime.isoformat(),
+        "local": spectral_data.local,
+        "filter": spectral_data.filter,
+        "graph": spectral_data.graph,
+    }
 
 @router.get("/predictions/", response_model=list[PredictionResponse])
 async def list_predictions():
@@ -67,6 +90,6 @@ async def list_predictions():
         PredictionResponse(
             id=p.id, model_name=p.model_name, name=p.name,
             spectral_data_id=p.spectral_data_id, prediction=p.prediction,
-            createdAt=p.createdAt, attribute=p.attribute
+            createdAt=p.createdAt, attribute=p.attribute or ""  # Converte None para string vazia
         ) for p in predictions
     ]

@@ -24,6 +24,14 @@ async def get_spectra_by_id(id: int):
 async def get_all_spectra():
     return await prisma.spectra.find_many()
 
+async def get_variety_name_by_id(variety_id: int):
+    """Busca o nome da variedade pelo ID"""
+    try:
+        variety = await prisma.variety.find_unique(where={"id": variety_id})
+        return variety.name if variety else None
+    except Exception:
+        return None
+
 async def create_spectrum_data(data: SpectrumData, filtered_x: list, image_str: str):
     return await prisma.spectrumdata.create(
         data={

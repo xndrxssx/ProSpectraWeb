@@ -10,7 +10,7 @@ class SavePredictionRequest(BaseModel):
     name: str
     spectral_data_id: int = Field(..., gt=0)
     prediction: float
-    attribute: str
+    attribute: str | None = None
 
 class PredictionResponse(BaseModel):
     id: int
@@ -19,4 +19,4 @@ class PredictionResponse(BaseModel):
     spectral_data_id: int
     prediction: float
     createdAt: datetime
-    attribute: str
+    attribute: str | None = None

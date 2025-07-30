@@ -26,7 +26,8 @@ export default function Login() {
     e.preventDefault();
   
     try {
-      const response = await fetch('/api/login', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiUrl}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -39,7 +40,7 @@ export default function Login() {
         console.log("Login bem-sucedido:", data);
         
         // Decodifica e armazena o token no estado do contexto e no localStorage
-        setToken(data.token);
+        setToken(data.access_token);
 
         // Redireciona o usuário para a página /home após o login bem-sucedido
         router.push('/home');

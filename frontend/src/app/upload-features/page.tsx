@@ -200,14 +200,14 @@ function SaveWavelengths() {
       control: (base) => ({ ...base, borderRadius: 8, padding: "0.25rem" }),
       option:  (base, state) => ({
         ...base,
-        background: state.isFocused ? "#e6ffe6" : "white",
+        background: state.isFocused ? "#f3f4f6" : "white", // Cinza claro em vez de verde
         color: "#001E01",
       }),
     };
     
     const customTheme = (theme: Theme) => ({
       ...theme,
-      colors: { ...theme.colors, primary25: "#e6ffe6", primary: "#165a16" },
+      colors: { ...theme.colors, primary25: "#f3f4f6", primary: "#165a16" }, // Cinza claro em vez de verde
       borderRadius: 8,
     });
 
@@ -217,18 +217,17 @@ function SaveWavelengths() {
       <ToastContainer />
       <main className="flex-1 flex justify-center mt-10">
         <div className="bg-white/10 w-full max-w-2xl max-h-full">
-          <h1 className="text-2xl font-bold mb-4 text-center">Salvar Comprimentos de Onda</h1>
+          <h1 className="text-2xl font-bold mb-4 text-center">Salvar Espectros</h1>
 
           {erro && <div className="text-red-500 text-center mb-4">{erro}</div>}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Input de Nome do Atributo */}
             <div>
-              <label htmlFor="atributoNome" className="block text-sm font-medium mb-2">Nome do Conjunto de Dados:</label>
+              <label htmlFor="atributoNome" className="block text-sm font-medium mb-2">Nome:</label>
               <input id="atributoNome" value={dataSet} onChange={(e) => setDataSet(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg" placeholder="Ex: Uvas Thompson Safra 2024" required />
             </div>
 
-            {/* 7. ÁREA DO DROPZONE ATUALIZADA */}
             <div>
               <label className="block text-sm font-medium mb-2">Carregar Arquivo de Dados</label>
               <div {...getRootProps()}

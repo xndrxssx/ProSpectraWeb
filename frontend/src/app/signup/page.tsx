@@ -40,7 +40,8 @@ export default function SignUp() {
     console.log("Dados enviados:", formData);
 
     try {
-      const response = await fetch("/api/signup", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiUrl}/api/auth/signup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -132,9 +133,20 @@ export default function SignUp() {
               {successMessage && (
                 <div className="text-green-500 text-sm">{successMessage}</div>
               )}
+              <p className="text-sm font-light text-gray-500 text-center">
+                  Já tem uma conta?{' '}
+                  <button 
+                    type="button"
+                    onClick={() => router.push('/login')}
+                    className="font-medium text-[#007100] hover:underline hover:text-[#005304] cursor-pointer"
+                  >
+                    Voltar para Login
+                  </button>
+                </p>
               <p className="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl">
                 Crie sua conta
               </p>
+              
               <div>
                 <label className="block mb-2 text-sm font-medium text-gray-900">Nome de usuário</label>
                 <input

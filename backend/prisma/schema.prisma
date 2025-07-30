@@ -1,0 +1,89 @@
+generator js_client {
+  provider = "prisma-client-js"
+  output = "c:/Users/luyza/Documents/ProSpectraWeb/frontend/src/generated/client"
+}
+
+generator py_client {
+  provider = "prisma-client-py"
+  recursive_type_depth = 5
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model user {
+  id       Int    @id @default(autoincrement())
+  username String @unique(map: "User_username_key")
+  password String
+  userType String @default("produtor")
+}
+
+model Variety {
+  id          Int           @id @default(autoincrement())
+  name        String
+  description String        @db.Text
+  attributes  Json          @default("[]") // Adicionando um valor padrão (array vazio)
+}
+
+model Filter {
+  id         Int      @id @default(autoincrement())
+  name       String
+  type       String // 'MSC', 'SNV', ou 'SG'
+  parameters Json
+  createdAt  DateTime @default(now())
+}
+
+model Spectra {
+  id        Int      @id @default(autoincrement())
+  name      String
+  content   Json
+  variety   Int
+  datetime  DateTime
+  local     String
+  filter    String
+  graph     String
+  createdAt DateTime @default(now())
+}
+
+model PredictiveModel {
+  id              Int      @id @default(autoincrement())
+  model_name      String
+  variety         String
+  attribute       String
+  hyperparameters Json
+  metrics         Json
+  model           String?
+  graph           Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SpectrumData {
+  id          Int      @id @default(autoincrement())
+  dataset     String
+  wavelengths Json     @default("[]")
+  X           Json     @default("[]") // Valor padrão de lista vazia
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  image       Json
+}
+
+model TargetData {
+  id        Int      @id @default(autoincrement())
+  attribute String
+  y         Json     @default("[]") // Valor padrão de lista vazia
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Predictions {
+  id               Int      @id @default(autoincrement())
+  name             String
+  model_name       String
+  spectral_data_id Int
+  prediction  Float
+  createdAt   DateTime  @default(now())
+  attribute String ?
+}

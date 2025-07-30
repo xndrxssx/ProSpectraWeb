@@ -42,7 +42,7 @@ const customStyles: StylesConfig<Option, false> = {
   }),
   option: (provided, state) => ({
     ...provided,
-    backgroundColor: state.isFocused ? "#e6ffe6" : "white",
+    backgroundColor: state.isFocused ? "#e6ffe6" : "white", // Verde claro no hover
     color: "#001E01",
   }),
 };
@@ -52,13 +52,14 @@ const customTheme = (theme: Theme) => ({
   borderRadius: 8,
   colors: {
     ...theme.colors,
-    primary25: "#e6ffe6",
+    primary25: "#f3f4f6", // Cinza claro em vez de verde
     primary: "#165a16",
   },
 });
 
 function ApplyModels() {
   const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
   const [filters, setFilters] = useState({
     model: "",
     variety: "",
@@ -75,6 +76,11 @@ function ApplyModels() {
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isLoadingSpectral, setIsLoadingSpectral] = useState(false);
 
+  // Garante que o componente só execute no cliente
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   // OPTIONS para o React-Select
   const modelOptions: Option[] = models.map(m => ({ label: m, value: m }));
   const spectralOptions: Option[] = spectralDataList.map(d => ({
@@ -83,6 +89,8 @@ function ApplyModels() {
   }));
 
   useEffect(() => {
+    if (!isClient) return;
+    
     const fetchModels = async () => {
       try {
         toast.info("Carregando modelos...");
@@ -99,9 +107,11 @@ function ApplyModels() {
     };
   
     fetchModels();
-  }, []);
+  }, [isClient]);
   
   useEffect(() => {
+    if (!isClient) return;
+    
     const fetchSpectralData = async () => {
       try {
         toast.info("Carregando dados espectrais...");
@@ -118,7 +128,7 @@ function ApplyModels() {
     };
   
     fetchSpectralData();
-  }, []);  
+  }, [isClient]);  
 
   const handleFilterChange = async (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -220,12 +230,26 @@ function ApplyModels() {
     }    
   };
 
+  // Renderiza loading enquanto não estiver no cliente
+  if (!isClient) {
+    return (
+      <div className="min-h-screen w-full flex bg-[#eaeaea] text-[#001E01]">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#165a16] mx-auto mb-4"></div>
+            <p>Carregando...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full flex bg-[#eaeaea] text-[#001E01]">
       <CustomSidebar />
       <ToastContainer /> {/* Adiciona o ToastContainer para exibir notificações */}
-      <main className="flex-1 flex items-center justify-center">
-        <div className="bg-white/10 max-w-lg w-full backdrop-blur-sm rounded-lg p-8 shadow-lg">
+      <main className="flex-1 flex justify-center mt-10 mb-20">
+        <div className="bg-white/10 w-full max-w-2xl max-h-full">
           <h1 className="text-2xl font-bold mb-4 text-center">Aplicar Modelo</h1>
           {error && <div className="text-red-500 text-sm">{error}</div>}
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -234,6 +258,7 @@ function ApplyModels() {
                 Modelo Preditivo:
               </label>
               <Select
+                instanceId="model-select"
                 isLoading={isLoadingModels}
                 options={modelOptions}
                 value={modelOptions.find(o => o.value === filters.model) || null}
@@ -275,6 +300,7 @@ function ApplyModels() {
                 Dados Espectrais:
               </label>
               <Select
+                instanceId="spectral-select"
                 isLoading={isLoadingSpectral}
                 options={spectralOptions}
                 value={spectralOptions.find(o => o.value === filters.spectralDataId) || null}
