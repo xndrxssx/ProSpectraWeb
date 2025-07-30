@@ -20,7 +20,7 @@ dist/
 .env.development.local
 .env.test.local
 .env.production.local
-
+*__pycache__*
 # Logs e arquivos de depuração
 npm-debug.log*
 yarn-debug.log*
@@ -38,4 +38,8 @@ Thumbs.db
 # Arquivos de configuração de Editores e IDEs
 .vscode/
 .idea/
+
+# Python cache
+__pycache__/
+*.pyc
 
