@@ -43,7 +43,7 @@ export function ProducerDashboard({ data, commonData }: { data: any, commonData:
     const fetchImageUrl = async () => {
         setLoadingSpectrum1(true);
         try {
-            const response = await fetch(`/api/spectra/${selectedSpectrum1Id}`);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/spectra/${selectedSpectrum1Id}`);
             if (!response.ok) throw new Error("Imagem não encontrada");
             const data = await response.json();
             setSpectrum1Url(data.image_url); // Armazena a URL
@@ -66,7 +66,7 @@ export function ProducerDashboard({ data, commonData }: { data: any, commonData:
     const fetchImageUrl = async () => {
         setLoadingSpectrum2(true);
         try {
-            const response = await fetch(`/api/spectrum-data/${selectedSpectrum2Id}`);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/spectrum-data/${selectedSpectrum2Id}`);
             if (!response.ok) throw new Error("Imagem não encontrada");
             const data = await response.json();
             setSpectrum2Url(data.image_url); // Armazena a URL

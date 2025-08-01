@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -18,7 +18,7 @@ class ModelResponse(BaseModel):
     variety: str
     attribute: str
     hyperparameters: Dict[str, Any]
-    metrics: Dict[str, Dict[str, float]]
+    metrics: Dict[str, Dict[str, Union[float, None]]]
     model: str
     graph: Dict[str, str]
     createdAt: datetime

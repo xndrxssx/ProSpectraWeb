@@ -3,6 +3,7 @@ from datetime import datetime, timezone, timedelta
 
 def _process_admin_view(all_models: list) -> dict:
     """Processa e retorna os dados para a visão do Administrador."""
+    
     if not all_models:
         return {
             "stats": {
@@ -20,7 +21,12 @@ def _process_admin_view(all_models: list) -> dict:
 
     # 1. Processar Métricas e Tempos
     test_metrics = [m.metrics.get('test') for m in all_models if m.metrics and m.metrics.get('test')]
-    r2_scores = [m.get('R²', 0) for m in test_metrics if m.get('R²')]
+    
+    r2_scores = []
+    for m in test_metrics:
+        if m and m.get('R²') is not None and m.get('R²') != 0:
+            r2_scores.append(m.get('R²', 0))
+    
     exec_times = [m.metrics.get('time', {}).get('execution_time') for m in all_models if m.metrics.get('time', {}).get('execution_time') is not None]
 
     # 2. Calcular Estatísticas Principais
@@ -28,17 +34,17 @@ def _process_admin_view(all_models: list) -> dict:
     last_trained_model = all_models[-1]
     avg_r2 = np.mean(r2_scores) if r2_scores else 0
     avg_exec_time = np.mean(exec_times) if exec_times else 0
-    best_r2_model_data = max(all_models, key=lambda m: m.metrics.get('test', {}).get('R²', -1))
-    fastest_model_data = min(all_models, key=lambda m: m.metrics.get('time', {}).get('execution_time', float('inf')))
+    best_r2_model_data = max(all_models, key=lambda m: m.metrics.get('test', {}).get('R²', -1) if m.metrics.get('test', {}).get('R²') is not None else -1)
+    fastest_model_data = min(all_models, key=lambda m: m.metrics.get('time', {}).get('execution_time', float('inf')) if m.metrics.get('time', {}).get('execution_time') is not None else float('inf'))
 
     # 3. Calcular Tendências (Trends)
     models_current_period = [m for m in all_models if m.createdAt > thirty_days_ago]
     models_previous_period = [m for m in all_models if sixty_days_ago < m.createdAt <= thirty_days_ago] # Corrigido para período anterior
 
     # Tendência de Acurácia (R²)
-    r2_current = [m.metrics.get('test', {}).get('R²', 0) for m in models_current_period if m.metrics.get('test')]
+    r2_current = [m.metrics.get('test', {}).get('R²', 0) for m in models_current_period if m.metrics.get('test') and m.metrics.get('test', {}).get('R²') is not None and m.metrics.get('test', {}).get('R²') != 0]
     avg_r2_current = np.mean(r2_current) if r2_current else 0
-    r2_previous = [m.metrics.get('test', {}).get('R²', 0) for m in models_previous_period if m.metrics.get('test')]
+    r2_previous = [m.metrics.get('test', {}).get('R²', 0) for m in models_previous_period if m.metrics.get('test') and m.metrics.get('test', {}).get('R²') is not None and m.metrics.get('test', {}).get('R²') != 0]
     avg_r2_previous = np.mean(r2_previous) if r2_previous else 0
     trend_str_r2 = ""
     if avg_r2_current > 0 and avg_r2_previous > 0:
@@ -46,9 +52,9 @@ def _process_admin_view(all_models: list) -> dict:
         trend_str_r2 = f"{'+' if difference >= 0 else ''}{difference:.1%}"
 
     # Tendência de Tempo de Execução
-    time_current = [m.metrics.get('time', {}).get('execution_time', 0) for m in models_current_period if m.metrics.get('time')]
+    time_current = [m.metrics.get('time', {}).get('execution_time', 0) for m in models_current_period if m.metrics.get('time') and m.metrics.get('time', {}).get('execution_time') is not None]
     avg_time_current = np.mean(time_current) if time_current else 0
-    time_previous = [m.metrics.get('time', {}).get('execution_time', 0) for m in models_previous_period if m.metrics.get('time')]
+    time_previous = [m.metrics.get('time', {}).get('execution_time', 0) for m in models_previous_period if m.metrics.get('time') and m.metrics.get('time', {}).get('execution_time') is not None]
     avg_time_previous = np.mean(time_previous) if time_previous else 0
     trend_str_time = ""
     if avg_time_current > 0 and avg_time_previous > 0:
@@ -76,9 +82,11 @@ def _process_admin_view(all_models: list) -> dict:
         },
         "charts": {
             "model_performance": [{ "model": f"{m.model_name} ({m.attribute})", "r2": m.metrics.get('test', {}).get('R²', 0), "mae": m.metrics.get('test', {}).get('MAE', 0), "rmse": m.metrics.get('test', {}).get('RMSE', 0)} for m in all_models],
-            "execution_time": [{"model": f"{m.model_name} ({m.attribute})", "time": m.metrics.get('time', {}).get('execution_time', 0)} for m in all_models]
+            "execution_time": [{"model": f"{m.model_name} ({m.attribute})", "time": m.metrics.get('time', {}).get('execution_time', 0)} for m in all_models],
+            "training_curves": [{"model": f"{m.model_name} ({m.attribute})", "train_r2": m.metrics.get('train', {}).get('R²', 0), "validation_r2": m.metrics.get('cv', {}).get('R²', 0), "test_r2": m.metrics.get('test', {}).get('R²', 0)} for m in all_models]
         },
-        "tables": { "model_metrics": [{"model": m.model_name, "attribute": m.attribute, "train": m.metrics.get('train', {}), "validation": m.metrics.get('cv', {}), "test": m.metrics.get('test', {})} for m in all_models] }
+        "tables": { "model_metrics": [{"model": m.model_name, "attribute": m.attribute, "train": m.metrics.get('train', {}), "validation": m.metrics.get('cv', {}), "test": m.metrics.get('test', {})} for m in all_models] },
+        "available_models": [{"id": m.id, "name": f"{m.model_name} ({m.attribute})", "model_name": m.model_name, "attribute": m.attribute} for m in all_models]
     }
     return admin_view
 
@@ -103,10 +111,23 @@ def _process_producer_view(all_models: list, all_predictions: list) -> dict:
     total_predictions = len(all_predictions)
     last_prediction = all_predictions[-1]
 
-    avg_precision_proxy = np.mean([m.metrics.get('test', {}).get('R²', 0) for m in all_models]) if all_models else 0
-    avg_error_proxy = np.mean([m.metrics.get('test', {}).get('MAE', 0) for m in all_models]) if all_models else 0
-    best_precision_model_proxy = max(all_models, key=lambda m: m.metrics.get('test', {}).get('R²', -1), default=None)
-    lowest_error_model_proxy = min(all_models, key=lambda m: m.metrics.get('test', {}).get('MAE', float('inf')), default=None)
+    r2_values = [m.metrics.get('test', {}).get('R²', 0) for m in all_models if m.metrics.get('test', {}).get('R²') is not None]
+    mae_values = [m.metrics.get('test', {}).get('MAE', 0) for m in all_models if m.metrics.get('test', {}).get('MAE') is not None]
+    
+    avg_precision_proxy = np.mean(r2_values) if r2_values else 0
+    avg_error_proxy = np.mean(mae_values) if mae_values else 0
+    
+    best_precision_model_proxy = None
+    lowest_error_model_proxy = None
+    
+    if all_models:
+        valid_models = [m for m in all_models if m.metrics.get('test', {}).get('R²') is not None]
+        if valid_models:
+            best_precision_model_proxy = max(valid_models, key=lambda m: m.metrics.get('test', {}).get('R²', -1))
+        
+        valid_models_mae = [m for m in all_models if m.metrics.get('test', {}).get('MAE') is not None]
+        if valid_models_mae:
+            lowest_error_model_proxy = min(valid_models_mae, key=lambda m: m.metrics.get('test', {}).get('MAE', float('inf')))
 
     # Reutilizando a lógica de tendência da visão do admin para a precisão (R²)
     admin_trends = _process_admin_view(all_models)

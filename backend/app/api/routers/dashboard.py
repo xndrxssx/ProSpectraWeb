@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from fastapi import APIRouter, HTTPException
 
 from app.db.session import prisma
@@ -20,8 +22,8 @@ async def get_dashboard_data():
         )
 
         # --- ETAPA 3: BUSCAR DADOS ADICIONAIS E MONTAR RESPOSTA FINAL (Responsabilidade do Router) ---
-        spectra_list_metadata = await prisma.spectra.find_many(select={"id": True, "name": True, "variety": True})
-        spectrum_data_list_metadata = await prisma.spectrumdata.find_many(select={"id": True, "dataset": True})
+        spectra_list_metadata = await prisma.spectra.find_many()
+        spectrum_data_list_metadata = await prisma.spectrumdata.find_many()
         
         common_data = {
             "predicted_spectra_options": [{"id": s.id, "name": f"{s.name} ({s.variety})"} for s in spectra_list_metadata],
@@ -63,3 +65,54 @@ async def get_original_spectrum_image(spectrum_data_id: int):
     if not image_url:
         raise HTTPException(status_code=500, detail="Erro ao processar imagem.")
     return {"image_url": image_url}
+
+@router.get("/model-graphs/{model_id}")
+async def get_model_training_graphs(model_id: int):
+    """Retorna os gráficos de treinamento de um modelo específico."""
+    try:
+        model = await prisma.predictivemodel.find_unique(where={"id": model_id})
+        if not model or not model.graph:
+            raise HTTPException(status_code=404, detail="Modelo ou gráficos não encontrados.")
+        
+        # Deserializar os dados do gráfico
+        graph_data = model.graph if isinstance(model.graph, dict) else json.loads(model.graph)
+        
+        # Gerar URLs para os gráficos - usando caminhos diretos dos arquivos
+        regression_path = graph_data.get("regression_comparison_plot", "")
+        test_predictions_path = graph_data.get("test_predictions_plot", "")
+        
+        # Converter caminhos de arquivo para URLs
+        regression_url = f"/static/images/{Path(regression_path).name}" if regression_path else None
+        test_predictions_url = f"/static/images/{Path(test_predictions_path).name}" if test_predictions_path else None
+        
+        return {
+            "model_name": model.model_name,
+            "attribute": model.attribute,
+            "regression_comparison_url": regression_url,
+            "test_predictions_url": test_predictions_url
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar gráficos do modelo: {str(e)}")
+
+@router.get("/available-models")
+async def get_available_models():
+    """Retorna lista de modelos disponíveis para visualização de gráficos."""
+    try:
+        models = await prisma.predictivemodel.find_many(
+            select={"id": True, "model_name": True, "attribute": True, "variety": True, "createdAt": True}
+        )
+        return {
+            "models": [
+                {
+                    "id": model.id,
+                    "name": f"{model.model_name} ({model.attribute})",
+                    "model_name": model.model_name,
+                    "attribute": model.attribute,
+                    "variety": model.variety,
+                    "created_at": model.createdAt.isoformat()
+                }
+                for model in models
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar modelos: {str(e)}")

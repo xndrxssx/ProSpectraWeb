@@ -51,7 +51,10 @@ async def get_spectrum_data_by_id(id: int):
     return await prisma.spectrumdata.find_unique(where={"id": id})
 
 async def create_target_data(data: TargetData):
-    y_data = json.dumps(data.y) if isinstance(data.y, list) else json.dumps([data.y])
+    # Garantir que y seja uma lista
+    y_list = data.y if isinstance(data.y, list) else [data.y]
+    y_data = json.dumps(y_list)
+    
     return await prisma.targetdata.create(
         data={"attribute": data.attribute, "y": y_data}
     )

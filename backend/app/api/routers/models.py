@@ -24,10 +24,10 @@ async def train_and_save_model(data: ModelData, training_function):
             model_name=db_entry.model_name,
             attribute=db_entry.attribute,
             variety=db_entry.variety,
-            hyperparameters=json.loads(db_entry.hyperparameters),
-            metrics=json.loads(db_entry.metrics),
+            hyperparameters=db_entry.hyperparameters if isinstance(db_entry.hyperparameters, dict) else json.loads(db_entry.hyperparameters),
+            metrics=db_entry.metrics if isinstance(db_entry.metrics, dict) else json.loads(db_entry.metrics),
             model=db_entry.model,
-            graph=json.loads(db_entry.graph),
+            graph=db_entry.graph if isinstance(db_entry.graph, dict) else json.loads(db_entry.graph),
             createdAt=db_entry.createdAt,
             updatedAt=db_entry.updatedAt,
         )

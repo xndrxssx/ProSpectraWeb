@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from app.core.config import PROJECT_NAME, API_PREFIX, ORIGINS
+from app.core.config import PROJECT_NAME, API_PREFIX, ORIGINS, STATIC_DIR
 from app.db.session import connect_db, disconnect_db
 from app.api.routers import spectra, models, predictions, hardware, dashboard, users, auth, variety
 
@@ -27,6 +28,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Servir Arquivos Estáticos ---
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # --- Inclusão dos Roteadores ---
 # Inclui todos os endpoints modulares na aplicação principal

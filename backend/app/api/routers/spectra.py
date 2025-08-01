@@ -56,10 +56,13 @@ async def save_wavelengths(data: SpectrumData):
 async def save_targets(data: TargetData):
     try:
         db_entry = await crud_spectrum.create_target_data(data)
+        # Verificar se db_entry.y já é uma lista ou precisa ser deserializado
+        y_data = db_entry.y if isinstance(db_entry.y, list) else json.loads(db_entry.y)
+        
         return TargetResponse(
             id=db_entry.id,
             attribute=db_entry.attribute,
-            y=json.loads(db_entry.y),
+            y=y_data,
             createdAt=db_entry.createdAt,
             updatedAt=db_entry.updatedAt
         )
@@ -82,11 +85,11 @@ async def get_wavelengths(skip: int = Query(0, ge=0), limit: int = Query(100, ge
         SpectrumResponse(
             id=entry.id,
             dataset=entry.dataset,
-            wavelengths=json.loads(entry.wavelengths),
-            X=json.loads(entry.X),
+            wavelengths=entry.wavelengths if isinstance(entry.wavelengths, list) else json.loads(entry.wavelengths),
+            X=entry.X if isinstance(entry.X, list) else json.loads(entry.X),
             createdAt=entry.createdAt,
             updatedAt=entry.updatedAt,
-            image=json.loads(entry.image or '{}')
+            image=entry.image if isinstance(entry.image, dict) else json.loads(entry.image or '{}')
         ) for entry in db_entries
     ]
 
@@ -95,7 +98,7 @@ async def get_targets(skip: int = Query(0, ge=0), limit: int = Query(100, ge=1))
     db_entries = await crud_spectrum.get_all_target_data(skip, limit)
     return [
         TargetResponse(
-            id=entry.id, attribute=entry.attribute, y=json.loads(entry.y),
+            id=entry.id, attribute=entry.attribute, y=entry.y if isinstance(entry.y, list) else json.loads(entry.y),
             createdAt=entry.createdAt, updatedAt=entry.updatedAt
         ) for entry in db_entries
     ]
@@ -105,11 +108,11 @@ async def get_wavelength_by_id(id: int):
     entry = await crud_spectrum.get_spectrum_data_by_id(id)
     if not entry:
         raise HTTPException(status_code=404, detail="Dado espectral não encontrado")
-    return XResponse(X=json.loads(entry.X))
+    return XResponse(X=entry.X if isinstance(entry.X, list) else json.loads(entry.X))
 
 @router.get("/get-targets/{id}", response_model=YResponse)
 async def get_target_by_id(id: int):
     entry = await crud_spectrum.get_target_data_by_id(id)
     if not entry:
         raise HTTPException(status_code=404, detail="Alvo não encontrado")
-    return YResponse(y=json.loads(entry.y))
+    return YResponse(y=entry.y if isinstance(entry.y, list) else json.loads(entry.y))

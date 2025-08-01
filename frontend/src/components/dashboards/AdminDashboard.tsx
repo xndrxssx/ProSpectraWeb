@@ -32,6 +32,14 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
   const [spectrum2Url, setSpectrum2Url] = useState<string | null>(null);
   const [loadingSpectrum2, setLoadingSpectrum2] = useState(false);
 
+  // Estados para gráficos de treinamento
+  const [selectedModelId, setSelectedModelId] = useState<number | null>(null);
+  const [trainingGraphs, setTrainingGraphs] = useState<{
+    regression_comparison_url: string | null;
+    test_predictions_url: string | null;
+  } | null>(null);
+  const [loadingTrainingGraphs, setLoadingTrainingGraphs] = useState(false);
+
   // Efeito para buscar a URL da imagem do Espectro 1
   useEffect(() => {
     if (!selectedSpectrum1Id) {
@@ -41,7 +49,7 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
     const fetchImageUrl = async () => {
         setLoadingSpectrum1(true);
         try {
-            const response = await fetch(`/api/spectra/${selectedSpectrum1Id}`);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/spectra/${selectedSpectrum1Id}`);
             if (!response.ok) throw new Error("Imagem não encontrada");
             const data = await response.json();
             setSpectrum1Url(data.image_url); // Armazena a URL
@@ -64,7 +72,7 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
     const fetchImageUrl = async () => {
         setLoadingSpectrum2(true);
         try {
-            const response = await fetch(`/api/spectrum-data/${selectedSpectrum2Id}`);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/spectrum-data/${selectedSpectrum2Id}`);
             if (!response.ok) throw new Error("Imagem não encontrada");
             const data = await response.json();
             setSpectrum2Url(data.image_url); // Armazena a URL
@@ -77,6 +85,34 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
     };
     fetchImageUrl();
   }, [selectedSpectrum2Id]);
+
+  // Efeito para buscar os gráficos de treinamento do modelo selecionado
+  useEffect(() => {
+    if (!selectedModelId) {
+      setTrainingGraphs(null);
+      return;
+    }
+    
+    const fetchTrainingGraphs = async () => {
+      setLoadingTrainingGraphs(true);
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/model-graphs/${selectedModelId}`);
+        if (!response.ok) throw new Error("Gráficos não encontrados");
+        const data = await response.json();
+        setTrainingGraphs({
+          regression_comparison_url: data.regression_comparison_url,
+          test_predictions_url: data.test_predictions_url
+        });
+      } catch (error) {
+        console.error("Erro ao buscar gráficos de treinamento:", error);
+        setTrainingGraphs(null);
+      } finally {
+        setLoadingTrainingGraphs(false);
+      }
+    };
+    
+    fetchTrainingGraphs();
+  }, [selectedModelId]);
 
   return (
     <div className="space-y-6">
@@ -188,34 +224,60 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
             </CardHeader>
             <CardContent>
                  <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Modelo</TableHead>
-                            <TableHead>Atributo</TableHead>
-                            <TableHead>Teste (R²)</TableHead>
-                            <TableHead>Teste (MAE)</TableHead>
-                            <TableHead>Validação (R²)</TableHead>
-                            <TableHead>Treino (R²)</TableHead>
-                        </TableRow>
-                    </TableHeader>
+                                         <TableHeader>
+                         <TableRow>
+                             <TableHead>Modelo</TableHead>
+                             <TableHead>Atributo</TableHead>
+                             <TableHead>Teste (R²)</TableHead>
+                             <TableHead>Teste (MAE)</TableHead>
+                             <TableHead>Validação (R²)</TableHead>
+                             <TableHead>Treino (R²)</TableHead>
+                             <TableHead>Status</TableHead>
+                         </TableRow>
+                     </TableHeader>
                     <TableBody>
-                        {tables.model_metrics && tables.model_metrics.length > 0 ? (
-                            tables.model_metrics.map((item: any) => (
-                                <TableRow key={`${item.model}-${item.attribute}`}>
-                                    <TableCell className="font-medium">{item.model}</TableCell>
-                                    <TableCell>{item.attribute}</TableCell>
-                                    <TableCell>{item.test?.R2?.toFixed(3) || 'N/A'}</TableCell>
-                                    <TableCell>{item.test?.MAE?.toFixed(3) || 'N/A'}</TableCell>
-                                    <TableCell>{item.validation?.R2?.toFixed(3) || 'N/A'}</TableCell>
-                                    <TableCell>{item.train?.R2?.toFixed(3) || 'N/A'}</TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={6} className="text-center text-gray-500 py-6">
-                                    Nenhuma métrica de modelo encontrada.
-                                </TableCell>
-                            </TableRow>
+                                                 {tables.model_metrics && tables.model_metrics.length > 0 ? (
+                             tables.model_metrics.map((item: any) => {
+                                 const trainR2 = item.train?.['R²'] || 0;
+                                 const validationR2 = item.validation?.['R²'] || 0;
+                                 const testR2 = item.test?.['R²'] || 0;
+                                 const diff = Math.abs(trainR2 - validationR2);
+                                 
+                                 let status = "Normal";
+                                 let statusColor = "text-green-600";
+                                 
+                                 if (diff > 0.1) {
+                                     if (trainR2 > validationR2) {
+                                         status = "Overfitting";
+                                         statusColor = "text-orange-600";
+                                     } else {
+                                         status = "Underfitting";
+                                         statusColor = "text-red-600";
+                                     }
+                                 }
+                                 
+                                 return (
+                                     <TableRow key={`${item.model}-${item.attribute}`}>
+                                         <TableCell className="font-medium">{item.model}</TableCell>
+                                         <TableCell>{item.attribute}</TableCell>
+                                         <TableCell>{item.test?.['R²']?.toFixed(3) || 'N/A'}</TableCell>
+                                         <TableCell>{item.test?.MAE?.toFixed(3) || 'N/A'}</TableCell>
+                                         <TableCell>{item.validation?.['R²']?.toFixed(3) || 'N/A'}</TableCell>
+                                         <TableCell>{item.train?.['R²']?.toFixed(3) || 'N/A'}</TableCell>
+                                         <TableCell>
+                                             <span className={`font-medium ${statusColor}`}>
+                                                 {status}
+                                             </span>
+                                         </TableCell>
+                                     </TableRow>
+                                 );
+                             })
+                         ) : (
+                                                         <TableRow>
+                                 <TableCell colSpan={7} className="text-center text-gray-500 py-6">
+                                     Nenhuma métrica de modelo encontrada.
+                                 </TableCell>
+                             </TableRow>
                         )}
                     </TableBody>
                  </Table>
@@ -277,7 +339,135 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
             </Card>
         </TabsContent>
         <TabsContent value="traintest" className="pt-6">
-            
+            <div className="space-y-6">
+                {/* Seletor de Modelo */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Selecionar Modelo para Visualizar Gráficos</CardTitle>
+                        <CardDescription>Escolha um modelo para visualizar seus gráficos de treinamento e predição.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Select onValueChange={(value) => setSelectedModelId(Number(value))}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecione um modelo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {data.available_models?.map((model: any) => (
+                                    <SelectItem key={model.id} value={model.id.toString()}>
+                                        {model.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </CardContent>
+                </Card>
+
+                {/* Gráficos de Treinamento */}
+                {selectedModelId && (
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Gráfico de Treino e Validação</CardTitle>
+                                <CardDescription>Comparação entre valores reais vs preditos (treino e validação cruzada).</CardDescription>
+                            </CardHeader>
+                            <CardContent className="w-full aspect-video">
+                                {loadingTrainingGraphs ? (
+                                    <div className="flex items-center justify-center h-full">
+                                        <LoaderCircle className="animate-spin h-8 w-8 text-gray-400" />
+                                    </div>
+                                ) : trainingGraphs?.regression_comparison_url ? (
+                                    <img 
+                                        src={trainingGraphs.regression_comparison_url} 
+                                        alt="Gráfico de Treino e Validação" 
+                                        className="w-full h-full object-contain"
+                                    />
+                                ) : (
+                                    <div className="flex items-center justify-center h-full">
+                                        <p className="text-gray-500">Gráfico não disponível</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Gráfico de Predições de Teste</CardTitle>
+                                <CardDescription>Valores reais vs preditos no conjunto de teste.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="w-full aspect-video">
+                                {loadingTrainingGraphs ? (
+                                    <div className="flex items-center justify-center h-full">
+                                        <LoaderCircle className="animate-spin h-8 w-8 text-gray-400" />
+                                    </div>
+                                ) : trainingGraphs?.test_predictions_url ? (
+                                    <img 
+                                        src={trainingGraphs.test_predictions_url} 
+                                        alt="Gráfico de Predições de Teste" 
+                                        className="w-full h-full object-contain"
+                                    />
+                                ) : (
+                                    <div className="flex items-center justify-center h-full">
+                                        <p className="text-gray-500">Gráfico não disponível</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {/* Análise de Overfitting/Underfitting */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Análise de Overfitting/Underfitting</CardTitle>
+                        <CardDescription>Identificação de problemas de generalização baseado nas diferenças entre treino e validação.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            {charts.training_curves && charts.training_curves.length > 0 ? (
+                                charts.training_curves.map((model: any, index: number) => {
+                                    const trainR2 = model.train_r2 || 0;
+                                    const validationR2 = model.validation_r2 || 0;
+                                    const testR2 = model.test_r2 || 0;
+                                    const diff = Math.abs(trainR2 - validationR2);
+                                    
+                                    let status = "Normal";
+                                    let statusColor = "text-green-600";
+                                    let description = "Modelo bem generalizado";
+                                    
+                                    if (diff > 0.1) {
+                                        if (trainR2 > validationR2) {
+                                            status = "Overfitting";
+                                            statusColor = "text-orange-600";
+                                            description = "Modelo pode estar memorizando os dados de treino";
+                                        } else {
+                                            status = "Underfitting";
+                                            statusColor = "text-red-600";
+                                            description = "Modelo pode estar subajustado";
+                                        }
+                                    }
+                                    
+                                    return (
+                                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                                            <div>
+                                                <h4 className="font-medium">{model.model}</h4>
+                                                <p className="text-sm text-gray-600">
+                                                    Treino: {trainR2.toFixed(3)} | Validação: {validationR2.toFixed(3)} | Teste: {testR2.toFixed(3)}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className={`font-medium ${statusColor}`}>{status}</p>
+                                                <p className="text-xs text-gray-500">{description}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <p className="text-gray-500 text-center py-4">Nenhum dado disponível para análise.</p>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </TabsContent>
       </Tabs>
     </div>

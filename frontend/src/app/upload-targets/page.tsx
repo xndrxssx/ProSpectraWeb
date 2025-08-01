@@ -108,7 +108,11 @@ function SaveTargets() {
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error("Erro ao enviar os dados.");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Erro na resposta:", response.status, errorText);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
+      }
 
       toast.success("Features salvas com sucesso!");
       setUploadStatus('success'); // <-- 4. DÁ O CHECK DE SUCESSO

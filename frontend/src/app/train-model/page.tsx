@@ -442,13 +442,17 @@ function TrainModel() {
       
 
       if (!trainResponse.ok) {
-        throw new Error("Erro ao treinar o modelo.");
+        const errorText = await trainResponse.text();
+        console.error("Erro na resposta:", trainResponse.status, errorText);
+        throw new Error(`Erro ${trainResponse.status}: ${errorText}`);
       }
 
-      toast.success("Dados enviados com sucesso!");
+      const result = await trainResponse.json();
+      console.log("Modelo treinado com sucesso:", result);
+      toast.success("Modelo treinado com sucesso!");
     } catch (error) {
-      toast.error("Erro ao enviar os dados. Tente novamente.");
-      alert("Erro ao treinar o modelo.");
+      console.error("Erro ao treinar modelo:", error);
+      toast.error(`Erro ao treinar o modelo: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     } finally {
       setLoading(false);
     }

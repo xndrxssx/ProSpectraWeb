@@ -93,7 +93,13 @@ def calculate_metrics(y_true, y_pred) -> dict:
     mae = mean_absolute_error(y_true, y_pred)
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
     r2 = r2_score(y_true, y_pred)
-    return {"MAE": mae, "RMSE": rmse, "R²": r2}
+    
+    # Tratar valores NaN substituindo por None (que será convertido para null no JSON)
+    return {
+        "MAE": float(mae) if not np.isnan(mae) else None,
+        "RMSE": float(rmse) if not np.isnan(rmse) else None,
+        "R²": float(r2) if not np.isnan(r2) else None
+    }
 
 def generate_plot(datasets, wavelengths) -> str:
     if not datasets or not wavelengths:

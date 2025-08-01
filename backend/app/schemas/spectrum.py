@@ -30,6 +30,11 @@ class SpectrumResponse(BaseModel):
 class TargetData(BaseModel):
     attribute: str
     y: List[float]
+    
+    class Config:
+        json_encoders = {
+            float: lambda v: float(v) if v is not None else None
+        }
 
 class TargetResponse(BaseModel):
     id: int

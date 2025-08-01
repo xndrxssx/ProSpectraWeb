@@ -95,13 +95,7 @@ export function CustomSidebar({ children }: { children?: React.ReactNode }) {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Dashboard */}
-              <SidebarMenuItem>
-                <SidebarMenuButton className="flex items-center hover:bg-[#ffffff] transition-all duration-350 ease-in-out">
-                  <ChartColumn className="mr-2" />
-                  <Link href="/dashboard" className="">Dashboard</Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+
 
               {/* Exportar */}
               {/* <SidebarMenuItem>

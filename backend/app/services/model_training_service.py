@@ -31,7 +31,16 @@ def train_model(data: ModelData, model_instance):
 
     # Predições e métricas
     y_train_pred = pipeline.predict(X_train)
-    y_train_cv = cross_val_predict(pipeline, X_train, y_train, cv=5)
+    
+    # Ajustar o número de folds para validação cruzada baseado no número de amostras
+    n_samples = len(X_train)
+    cv_folds = min(5, n_samples)
+    if cv_folds < 2:
+        # Se não há amostras suficientes para CV, usar apenas as predições de treino
+        y_train_cv = y_train_pred
+    else:
+        y_train_cv = cross_val_predict(pipeline, X_train, y_train, cv=cv_folds)
+    
     y_pred_val = pipeline.predict(X_test)
 
     metrics_train = calculate_metrics(y_train, y_train_pred)
@@ -93,7 +102,16 @@ def train_pcr_model(data: ModelData):
     pipeline.fit(X_train, y_train)
 
     y_train_pred = pipeline.predict(X_train)
-    y_train_cv = cross_val_predict(pipeline, X_train, y_train, cv=5)
+    
+    # Ajustar o número de folds para validação cruzada baseado no número de amostras
+    n_samples = len(X_train)
+    cv_folds = min(5, n_samples)
+    if cv_folds < 2:
+        # Se não há amostras suficientes para CV, usar apenas as predições de treino
+        y_train_cv = y_train_pred
+    else:
+        y_train_cv = cross_val_predict(pipeline, X_train, y_train, cv=cv_folds)
+    
     y_pred_val = pipeline.predict(X_test)
 
     metrics_train = calculate_metrics(y_train, y_train_pred)
