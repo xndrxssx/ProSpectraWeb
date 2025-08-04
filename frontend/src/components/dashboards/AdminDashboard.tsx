@@ -52,6 +52,7 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/spectra/${selectedSpectrum1Id}`);
             if (!response.ok) throw new Error("Imagem não encontrada");
             const data = await response.json();
+            console.log("URL do espectro 1 recebida:", data.image_url);
             setSpectrum1Url(data.image_url); // Armazena a URL
         } catch (error) {
             console.error("Erro ao buscar URL do espectro 1:", error);
@@ -75,6 +76,7 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/spectrum-data/${selectedSpectrum2Id}`);
             if (!response.ok) throw new Error("Imagem não encontrada");
             const data = await response.json();
+            console.log("URL do espectro 2 recebida:", data.image_url);
             setSpectrum2Url(data.image_url); // Armazena a URL
         } catch (error) {
             console.error("Erro ao buscar URL do espectro 2:", error);
@@ -99,6 +101,10 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/model-graphs/${selectedModelId}`);
         if (!response.ok) throw new Error("Gráficos não encontrados");
         const data = await response.json();
+        console.log("URLs dos gráficos recebidas:", {
+          regression: data.regression_comparison_url,
+          test_predictions: data.test_predictions_url
+        });
         setTrainingGraphs({
           regression_comparison_url: data.regression_comparison_url,
           test_predictions_url: data.test_predictions_url
@@ -155,7 +161,6 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
                 <CardTitle>Desempenho dos Modelos (Teste)</CardTitle>
                 <CardDescription>Métricas R², MAE e RMSE para cada modelo.</CardDescription>
               </CardHeader>
-              {/* ALTERAÇÃO AQUI: Substituído h-[350px] por aspect-video */}
               <CardContent className="w-full aspect-video">
                 {charts.model_performance && charts.model_performance.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -188,31 +193,36 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
                 <CardTitle>Tempo de Execução por Modelo</CardTitle>
                 <CardDescription>Tempo em segundos para treinar cada modelo.</CardDescription>
               </CardHeader>
-               {/* ALTERAÇÃO AQUI: Substituído h-[350px] por aspect-video */}
               <CardContent className="w-full aspect-video">
-                {charts.execution_time && charts.execution_time.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsLineChart data={charts.execution_time} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="model" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis fontSize={12} tickLine={false} axisLine={false} />
-                      <Tooltip 
-                        contentStyle={{ 
-                            backgroundColor: 'white', 
-                            border: '1px solid #ccc',
-                            borderRadius: '0.5rem'
-                        }}
-                      />
-                      <Legend />
-                      <Line type="monotone" dataKey="time" stroke="#8884d8" name="Tempo (s)" />
-                    </RechartsLineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-gray-500">
-                    Nenhum dado de execução para exibir.
-                  </div>
-                )}
-              </CardContent>
+  {charts.execution_time && charts.execution_time.length > 0 ? (
+    <ResponsiveContainer width="100%" height="100%">
+      <RechartsLineChart data={charts.execution_time} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="model" fontSize={12} tickLine={false} axisLine={false} />
+        <YAxis
+          fontSize={12}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={(value) => typeof value === 'number' ? value.toFixed(2) : String(value)}
+        />
+        <Tooltip
+          formatter={(value, name) => [`${typeof value === 'number' ? value.toFixed(2) : String(value)} s`, name]}
+          contentStyle={{
+            backgroundColor: 'white',
+            border: '1px solid #ccc',
+            borderRadius: '0.5rem'
+          }}
+        />
+        <Legend />
+        <Line type="monotone" dataKey="time" stroke="#8884d8" name="Tempo (s)" />
+      </RechartsLineChart>
+    </ResponsiveContainer>
+  ) : (
+    <div className="flex items-center justify-center h-full text-gray-500">
+      Nenhum dado de execução para exibir.
+    </div>
+  )}
+</CardContent>
             </Card>
           </div>
         </TabsContent>
@@ -325,13 +335,25 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
                         {/* Visualizador 1 */}
                         <div className="w-full aspect-video border rounded-lg p-2 flex items-center justify-center bg-slate-50">
                             {loadingSpectrum1 ? <LoaderCircle className="animate-spin h-8 w-8 text-gray-400" /> : 
-                             spectrum1Url ? <img src={spectrum1Url} alt="Espectro 1" className="max-w-full max-h-full object-contain" /> :
+                             spectrum1Url ? <img 
+                                src={spectrum1Url} 
+                                alt="Espectro 1" 
+                                className="max-w-full max-h-full object-contain"
+                                onLoad={() => console.log("Imagem do espectro 1 carregada com sucesso")}
+                                onError={(e) => console.error("Erro ao carregar imagem do espectro 1:", e)}
+                             /> :
                              <p className="text-gray-500">Selecione o Espectro 1</p>}
                         </div>
                         {/* Visualizador 2 */}
                         <div className="w-full aspect-video border rounded-lg p-2 flex items-center justify-center bg-slate-50">
                              {loadingSpectrum2 ? <LoaderCircle className="animate-spin h-8 w-8 text-gray-400" /> :
-                              spectrum2Url ? <img src={spectrum2Url} alt="Espectro 2" className="max-w-full max-h-full object-contain" /> :
+                              spectrum2Url ? <img 
+                                src={spectrum2Url} 
+                                alt="Espectro 2" 
+                                className="max-w-full max-h-full object-contain"
+                                onLoad={() => console.log("Imagem do espectro 2 carregada com sucesso")}
+                                onError={(e) => console.error("Erro ao carregar imagem do espectro 2:", e)}
+                             /> :
                               <p className="text-gray-500">Selecione o Espectro 2</p>}
                         </div>
                     </div>
@@ -380,6 +402,8 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
                                         src={trainingGraphs.regression_comparison_url} 
                                         alt="Gráfico de Treino e Validação" 
                                         className="w-full h-full object-contain"
+                                        onLoad={() => console.log("Gráfico de regressão carregado com sucesso")}
+                                        onError={(e) => console.error("Erro ao carregar gráfico de regressão:", e)}
                                     />
                                 ) : (
                                     <div className="flex items-center justify-center h-full">
@@ -404,6 +428,8 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
                                         src={trainingGraphs.test_predictions_url} 
                                         alt="Gráfico de Predições de Teste" 
                                         className="w-full h-full object-contain"
+                                        onLoad={() => console.log("Gráfico de predições carregado com sucesso")}
+                                        onError={(e) => console.error("Erro ao carregar gráfico de predições:", e)}
                                     />
                                 ) : (
                                     <div className="flex items-center justify-center h-full">
@@ -451,7 +477,7 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
                                             <div>
                                                 <h4 className="font-medium">{model.model}</h4>
                                                 <p className="text-sm text-gray-600">
-                                                    Treino: {trainR2.toFixed(3)} | Validação: {validationR2.toFixed(3)} | Teste: {testR2.toFixed(3)}
+                                                    Treino: {typeof trainR2 === 'number' ? trainR2.toFixed(3) : String(trainR2)} | Validação: {typeof validationR2 === 'number' ? validationR2.toFixed(3) : String(validationR2)} | Teste: {typeof testR2 === 'number' ? testR2.toFixed(3) : String(testR2)}
                                                 </p>
                                             </div>
                                             <div className="text-right">

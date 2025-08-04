@@ -4,6 +4,9 @@ import pickle
 from typing import Any
 from app.core.config import SPECTRA_DIR
 
+# URL base do backend para servir arquivos estáticos
+BACKEND_URL = "http://localhost:8000"
+
 def save_image_from_base64(name: str, image_obj: dict) -> str:
     """Salva uma imagem Base64 na pasta static/spectra e retorna o caminho."""
     try:
@@ -18,7 +21,7 @@ def save_image_from_base64(name: str, image_obj: dict) -> str:
         with open(file_path, "wb") as f:
             f.write(image_data)
         
-        return f"/static/spectra/{name}.png"
+        return f"{BACKEND_URL}/static/spectra/{name}.png"
     
     except Exception as e:
         print(f"Erro ao salvar imagem: {e}")
@@ -31,7 +34,7 @@ def get_image_url(unique_id: str, db_data: str | dict, prefix: str) -> str | Non
     filename_with_ext = f"{prefix}_{unique_id}.png"
     filename_without_ext = f"{prefix}_{unique_id}"
     file_path = SPECTRA_DIR / filename_with_ext
-    url_path = f"/static/spectra/{filename_with_ext}"
+    url_path = f"{BACKEND_URL}/static/spectra/{filename_with_ext}"
 
     if file_path.exists():
         return url_path

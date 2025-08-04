@@ -87,31 +87,8 @@ function Home() {
             </p>
           </div>
 
-          {/* Dashboard Completo */}
-          {isLoading ? (
-            <div className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-3">
-                <Skeleton className="h-32 rounded-lg" />
-                <Skeleton className="h-32 rounded-lg" />
-                <Skeleton className="h-32 rounded-lg" />
-              </div>
-              <Skeleton className="h-[400px] rounded-lg" />
-            </div>
-          ) : dashboardData && userRole ? (
-            userRole === "admin" ? (
-              <AdminDashboard data={dashboardData.admin_view} commonData={dashboardData.common_data} />
-            ) : (
-              <ProducerDashboard data={dashboardData.producer_view} commonData={dashboardData.common_data} />
-            )
-          ) : (
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-8 shadow-lg text-center">
-              <LoaderCircle className="h-8 w-8 animate-spin mx-auto mb-4" />
-              <p>Carregando dados do dashboard...</p>
-            </div>
-          )}
-
-          {/* Cards de Ação Rápida */}
-          <div className="grid gap-6 md:grid-cols-2">
+           {/* Cards de Ação Rápida */}
+           <div className="grid gap-6 md:grid-cols-2">
             <Link href="/train-model">
               <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
                 <CardHeader>
@@ -140,6 +117,31 @@ function Home() {
               </Card>
             </Link>
           </div>
+
+          {/* Dashboard Completo */}
+          {isLoading ? (
+            <div className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-3">
+                <Skeleton className="h-32 rounded-lg" />
+                <Skeleton className="h-32 rounded-lg" />
+                <Skeleton className="h-32 rounded-lg" />
+              </div>
+              <Skeleton className="h-[400px] rounded-lg" />
+            </div>
+          ) : dashboardData && userRole ? (
+            userRole === "admin" ? (
+              <AdminDashboard data={dashboardData.admin_view} commonData={dashboardData.common_data} />
+            ) : (
+              <ProducerDashboard data={dashboardData.producer_view} commonData={dashboardData.common_data} />
+            )
+          ) : (
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-8 shadow-lg text-center">
+              <LoaderCircle className="h-8 w-8 animate-spin mx-auto mb-4" />
+              <p>Carregando dados do dashboard...</p>
+            </div>
+          )}
+
+         
         </div>
       </main>
     </div>

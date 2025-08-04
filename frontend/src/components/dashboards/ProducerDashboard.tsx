@@ -46,6 +46,7 @@ export function ProducerDashboard({ data, commonData }: { data: any, commonData:
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/spectra/${selectedSpectrum1Id}`);
             if (!response.ok) throw new Error("Imagem não encontrada");
             const data = await response.json();
+            console.log("URL do espectro 1 recebida:", data.image_url);
             setSpectrum1Url(data.image_url); // Armazena a URL
         } catch (error) {
             console.error("Erro ao buscar URL do espectro 1:", error);
@@ -69,6 +70,7 @@ export function ProducerDashboard({ data, commonData }: { data: any, commonData:
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/spectrum-data/${selectedSpectrum2Id}`);
             if (!response.ok) throw new Error("Imagem não encontrada");
             const data = await response.json();
+            console.log("URL do espectro 2 recebida:", data.image_url);
             setSpectrum2Url(data.image_url); // Armazena a URL
         } catch (error) {
             console.error("Erro ao buscar URL do espectro 2:", error);
@@ -135,7 +137,7 @@ export function ProducerDashboard({ data, commonData }: { data: any, commonData:
                                     <TableRow key={p.id}>
                                         <TableCell>{new Date(p.timestamp).toLocaleString('pt-BR')}</TableCell>
                                         <TableCell>{p.model}</TableCell>
-                                        <TableCell className="font-bold">{p.value.toFixed(4)}</TableCell>
+                                                                                 <TableCell className="font-bold">{typeof p.value === 'number' ? p.value.toFixed(4) : String(p.value)}</TableCell>
                                         <TableCell>
                                           <Badge variant="outline" className="border-green-600 bg-green-100 text-green-800">
                                             OK
@@ -233,13 +235,25 @@ export function ProducerDashboard({ data, commonData }: { data: any, commonData:
                         {/* Visualizador 1 */}
                         <div className="w-full aspect-video border rounded-lg p-2 flex items-center justify-center bg-slate-50">
                             {loadingSpectrum1 ? <LoaderCircle className="animate-spin h-8 w-8 text-gray-400" /> : 
-                             spectrum1Url ? <img src={spectrum1Url} alt="Espectro 1" className="max-w-full max-h-full object-contain" /> :
+                             spectrum1Url ? <img 
+                                src={spectrum1Url} 
+                                alt="Espectro 1" 
+                                className="max-w-full max-h-full object-contain"
+                                onLoad={() => console.log("Imagem do espectro 1 carregada com sucesso")}
+                                onError={(e) => console.error("Erro ao carregar imagem do espectro 1:", e)}
+                             /> :
                              <p className="text-gray-500">Selecione o Espectro 1</p>}
                         </div>
                         {/* Visualizador 2 */}
                         <div className="w-full aspect-video border rounded-lg p-2 flex items-center justify-center bg-slate-50">
                              {loadingSpectrum2 ? <LoaderCircle className="animate-spin h-8 w-8 text-gray-400" /> :
-                              spectrum2Url ? <img src={spectrum2Url} alt="Espectro 2" className="max-w-full max-h-full object-contain" /> :
+                              spectrum2Url ? <img 
+                                src={spectrum2Url} 
+                                alt="Espectro 2" 
+                                className="max-w-full max-h-full object-contain"
+                                onLoad={() => console.log("Imagem do espectro 2 carregada com sucesso")}
+                                onError={(e) => console.error("Erro ao carregar imagem do espectro 2:", e)}
+                             /> :
                               <p className="text-gray-500">Selecione o Espectro 2</p>}
                         </div>
                     </div>

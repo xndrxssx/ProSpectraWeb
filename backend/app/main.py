@@ -38,10 +38,10 @@ app.include_router(hardware.router, prefix=API_PREFIX, tags=["Hardware"])
 app.include_router(spectra.router, prefix=API_PREFIX, tags=["Spectra & Targets"])
 app.include_router(models.router, prefix=API_PREFIX, tags=["Model Training"])
 app.include_router(predictions.router, prefix=API_PREFIX, tags=["Predictions"])
-app.include_router(dashboard.router, prefix=API_PREFIX, tags=["Dashboard"])
 app.include_router(users.router, prefix=f"{API_PREFIX}/users", tags=["Users"])
 app.include_router(auth.router, prefix=f"{API_PREFIX}/auth", tags=["Authentication"])
 app.include_router(variety.router, prefix=API_PREFIX, tags=["Variety"])
+app.include_router(dashboard.router, prefix=API_PREFIX, tags=["Dashboard"])
 
 # Endpoint raiz para teste
 @app.get("/")
