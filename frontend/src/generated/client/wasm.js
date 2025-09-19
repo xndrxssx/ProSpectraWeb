@@ -129,19 +129,35 @@ exports.Prisma.UserScalarFieldEnum = {
   userType: 'userType'
 };
 
-exports.Prisma.VarietyScalarFieldEnum = {
-  id: 'id',
-  name: 'name',
-  description: 'description',
-  attributes: 'attributes'
-};
-
 exports.Prisma.FilterScalarFieldEnum = {
   id: 'id',
   name: 'name',
   type: 'type',
   parameters: 'parameters',
   createdAt: 'createdAt'
+};
+
+exports.Prisma.PredictionsScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  model_name: 'model_name',
+  spectral_data_id: 'spectral_data_id',
+  prediction: 'prediction',
+  createdAt: 'createdAt',
+  attribute: 'attribute'
+};
+
+exports.Prisma.PredictivemodelScalarFieldEnum = {
+  id: 'id',
+  model_name: 'model_name',
+  variety: 'variety',
+  attribute: 'attribute',
+  hyperparameters: 'hyperparameters',
+  metrics: 'metrics',
+  model: 'model',
+  graph: 'graph',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 };
 
 exports.Prisma.SpectraScalarFieldEnum = {
@@ -156,20 +172,7 @@ exports.Prisma.SpectraScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
-exports.Prisma.PredictiveModelScalarFieldEnum = {
-  id: 'id',
-  model_name: 'model_name',
-  variety: 'variety',
-  attribute: 'attribute',
-  hyperparameters: 'hyperparameters',
-  metrics: 'metrics',
-  model: 'model',
-  graph: 'graph',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-};
-
-exports.Prisma.SpectrumDataScalarFieldEnum = {
+exports.Prisma.SpectrumdataScalarFieldEnum = {
   id: 'id',
   dataset: 'dataset',
   wavelengths: 'wavelengths',
@@ -179,7 +182,7 @@ exports.Prisma.SpectrumDataScalarFieldEnum = {
   image: 'image'
 };
 
-exports.Prisma.TargetDataScalarFieldEnum = {
+exports.Prisma.TargetdataScalarFieldEnum = {
   id: 'id',
   attribute: 'attribute',
   y: 'y',
@@ -187,14 +190,11 @@ exports.Prisma.TargetDataScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
-exports.Prisma.PredictionsScalarFieldEnum = {
+exports.Prisma.VarietyScalarFieldEnum = {
   id: 'id',
   name: 'name',
-  model_name: 'model_name',
-  spectral_data_id: 'spectral_data_id',
-  prediction: 'prediction',
-  createdAt: 'createdAt',
-  attribute: 'attribute'
+  description: 'description',
+  attributes: 'attributes'
 };
 
 exports.Prisma.SortOrder = {
@@ -220,13 +220,13 @@ exports.Prisma.NullsOrder = {
 
 exports.Prisma.ModelName = {
   user: 'user',
-  Variety: 'Variety',
-  Filter: 'Filter',
-  Spectra: 'Spectra',
-  PredictiveModel: 'PredictiveModel',
-  SpectrumData: 'SpectrumData',
-  TargetData: 'TargetData',
-  Predictions: 'Predictions'
+  filter: 'filter',
+  predictions: 'predictions',
+  predictivemodel: 'predictivemodel',
+  spectra: 'spectra',
+  spectrumdata: 'spectrumdata',
+  targetdata: 'targetdata',
+  variety: 'variety'
 };
 
 /**

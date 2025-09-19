@@ -247,7 +247,7 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
                      </TableHeader>
                     <TableBody>
                                                  {tables.model_metrics && tables.model_metrics.length > 0 ? (
-                             tables.model_metrics.map((item: any) => {
+                             tables.model_metrics.map((item: any, index: number) => {
                                  const trainR2 = item.train?.['R²'] || 0;
                                  const validationR2 = item.validation?.['R²'] || 0;
                                  const testR2 = item.test?.['R²'] || 0;
@@ -267,7 +267,7 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
                                  }
                                  
                                  return (
-                                     <TableRow key={`${item.model}-${item.attribute}`}>
+                                     <TableRow key={`${item.model}-${item.attribute}-${index}`}>
                                          <TableCell className="font-medium">{item.model}</TableCell>
                                          <TableCell>{item.attribute}</TableCell>
                                          <TableCell>{item.test?.['R²']?.toFixed(3) || 'N/A'}</TableCell>
@@ -352,7 +352,11 @@ export function AdminDashboard({ data,commonData }: { data: any, commonData:any 
                                 alt="Espectro 2" 
                                 className="max-w-full max-h-full object-contain"
                                 onLoad={() => console.log("Imagem do espectro 2 carregada com sucesso")}
-                                onError={(e) => console.error("Erro ao carregar imagem do espectro 2:", e)}
+                                onError={(e) => console.error("Erro ao carregar imagem do espectro 2:", {
+                                  url: trainingGraphs?.regression_comparison_url,
+                                  event: e
+                                })}
+                                
                              /> :
                               <p className="text-gray-500">Selecione o Espectro 2</p>}
                         </div>

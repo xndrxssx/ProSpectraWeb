@@ -25,11 +25,7 @@ function SaveWavelengths() {
   const [sgParams, setSgParams] = useState({
     window_length: 5,
     polyorder: 2,
-    deriv: 0,
-    delta: 1,
-    axis: -1,
-    mode: "interp",
-    cval: 0,
+    deriv: 0
   });
   const [erro, setErro] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);

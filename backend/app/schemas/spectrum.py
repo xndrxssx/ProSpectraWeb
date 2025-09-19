@@ -5,7 +5,7 @@ from datetime import datetime
 class SpectraData(BaseModel):
     name: str
     content: List[List[float]]
-    variety: int
+    variety: str
     datetime: str
     local: str
     filter: Optional[str] = None

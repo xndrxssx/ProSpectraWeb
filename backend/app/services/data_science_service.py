@@ -14,30 +14,37 @@ def apply_msc(data: np.ndarray) -> np.ndarray:
     mean_spectrum = np.mean(data, axis=0)
     corrected_data = np.zeros_like(data)
     for i in range(data.shape[0]):
-        spectrum = data[i, :]
-        fit = np.polyfit(mean_spectrum, spectrum, 1, full=False)
-        corrected_data[i, :] = (spectrum - fit[1]) / fit[0]
+        slope, intercept = np.polyfit(mean_spectrum, data[i, :], 1)
+        # Aplica a correção
+        corrected_data[i, :] = (data[i, :] - intercept) / slope
     return corrected_data
 
-def apply_snv(data: np.ndarray) -> np.ndarray:
-    mean = np.mean(data, axis=1, keepdims=True)
-    std_dev = np.std(data, axis=1, keepdims=True)
-    return (data - mean) / std_dev
+def apply_snv(X: np.ndarray) -> np.ndarray:
+    if not isinstance(X, np.ndarray):
+        raise ValueError("Os dados de entrada devem ser um numpy.ndarray.")
+        
+    mean = np.mean(X, axis=1, keepdims=True)
+    std_dev = np.std(X, axis=1, keepdims=True)
+    return (X - mean) / std_dev
 
-def apply_sg(data: np.ndarray, params: dict) -> np.ndarray:
-    return savgol_filter(data, window_length=params['window_length'], polyorder=params['polyorder'], deriv=params['deriv'])
+def apply_sg(X: np.ndarray, window_length: int = 11, polyorder: int = 2, deriv: int = 1) -> np.ndarray:
+    if not isinstance(X, np.ndarray):
+        raise ValueError("Os dados de entrada devem ser um numpy.ndarray.")
+        
+    # axis=1 para aplicar o filtro ao longo dos comprimentos de onda para cada amostra
+    return savgol_filter(X, window_length=window_length, polyorder=polyorder, deriv=deriv, axis=1)
 
 # --- Funções de Plotagem e Visualização ---
 
 def plot_filtered_data(filtered_data: np.ndarray, wl: np.ndarray) -> str:
-    plt.figure(figsize=(9, 5))
-    plt.plot(wl, filtered_data.T)
+    plt.figure(figsize=(12, 6))
+    plt.plot(wl, filtered_data.T, alpha=0.5)
     plt.xlabel("Comprimento de onda (nm)", size=14)
     plt.ylabel("Absorbância", size=14)
-    plt.title("Filtro para o FieldSpec", size=18)
+    plt.title("FieldSpec", size=18)
     plt.axhline(y=0, color='k', linewidth=1.5)
-    plt.grid(True)
-    plt.tight_layout()
+    plt.grid(True,linestyle='--', alpha=0.6)
+    # plt.tight_layout()
     
     img_buf = io.BytesIO()
     plt.savefig(img_buf, format='png')

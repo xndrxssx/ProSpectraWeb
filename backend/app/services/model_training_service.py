@@ -34,12 +34,14 @@ def train_model(data: ModelData, model_instance):
     
     # Ajustar o número de folds para validação cruzada baseado no número de amostras
     n_samples = len(X_train)
-    cv_folds = min(5, n_samples)
-    if cv_folds < 2:
-        # Se não há amostras suficientes para CV, usar apenas as predições de treino
-        y_train_cv = y_train_pred
-    else:
-        y_train_cv = cross_val_predict(pipeline, X_train, y_train, cv=cv_folds)
+    # cv_folds = min(5, n_samples)
+    # if cv_folds < 2:
+    #     # Se não há amostras suficientes para CV, usar apenas as predições de treino
+    #     y_train_cv = y_train_pred
+    # else:
+    #     y_train_cv = cross_val_predict(pipeline, X_train, y_train, cv=cv_folds)
+    
+    y_train_cv = cross_val_predict(pipeline, X_train, y_train, cv=5)
     
     y_pred_val = pipeline.predict(X_test)
 
@@ -75,8 +77,83 @@ def train_model(data: ModelData, model_instance):
     return str(model_path), metrics, images_paths
 
 def train_rfr_model(data: ModelData):
-    model = RandomForestRegressor(**data.hyperparameters)
-    return train_model(data, model)
+    start_time = time.time()
+    
+    # --- 1. Limpeza e Criação do Modelo (Lógica original da train_rfr_model) ---
+    params = data.hyperparameters.copy()
+
+    # Converte o 'bootstrap' de string para booleano
+    if 'bootstrap' in params and isinstance(params['bootstrap'], str):
+        params['bootstrap'] = (params['bootstrap'].lower() == 'true')
+
+    # Converte outros parâmetros para seus tipos corretos
+    if 'n_estimators' in params and params.get('n_estimators') is not None:
+        params['n_estimators'] = int(params['n_estimators'])
+        
+    if 'max_depth' in params and params.get('max_depth') is not None:
+        if isinstance(params['max_depth'], str) and params['max_depth'].isdigit():
+            params['max_depth'] = int(params['max_depth'])
+        elif str(params['max_depth']).lower() in ['none', 'null']:
+            params['max_depth'] = None
+
+    # Cria a instância do modelo com os parâmetros corrigidos
+    model = RandomForestRegressor(**params)
+    
+    # --- 2. Preparação dos Dados e Treinamento (Lógica da train_model) ---
+    X_train = np.array(data.X_train)
+    y_train = np.array(data.y_train)
+    X_test = np.array(data.X_test)
+    y_test = np.array(data.y_test)
+    logger.info(f"Training RFR. X_train: {X_train.shape}, X_test: {X_test.shape}")
+    
+    # Cria o pipeline SEM StandardScaler, pois RFR não precisa
+    pipeline = make_pipeline(model)
+    pipeline.fit(X_train, y_train)
+
+    # --- 3. Predições e Métricas ---
+    y_train_pred = pipeline.predict(X_train)
+    
+    # Ajusta o número de folds para validação cruzada
+    # n_samples = len(X_train)
+    # cv_folds = min(5, n_samples)
+    # if cv_folds < 2:
+    #     y_train_cv = y_train_pred
+    # else:
+    #     y_train_cv = cross_val_predict(pipeline, X_train, y_train, cv=cv_folds)
+    y_train_cv = cross_val_predict(pipeline, X_train, y_train, cv=5)
+    
+    y_pred_val = pipeline.predict(X_test)
+
+    metrics_train = calculate_metrics(y_train, y_train_pred)
+    metrics_cv = calculate_metrics(y_train, y_train_cv)
+    metrics_pred = calculate_metrics(y_test, y_pred_val)
+
+    # --- 4. Geração e Salvamento de Gráficos ---
+    img_filename_1 = f"{data.attribute}_{data.model_name}_regression_comparison.png"
+    img_path_1 = IMAGES_DIR / img_filename_1
+    save_regression_comparison_plot(y_train, y_train_pred, y_train_cv, img_path_1)
+
+    img_filename_2 = f"{data.attribute}_{data.model_name}_test_predictions.png"
+    img_path_2 = IMAGES_DIR / img_filename_2
+    plot_test_predictions(y_test, y_pred_val, img_path_2)
+
+    images_paths = {
+        "regression_comparison_plot": str(img_path_1),
+        "test_predictions_plot": str(img_path_2)
+    }
+    
+    execution_time = time.time() - start_time
+    metrics = {
+        "train": metrics_train, "cv": metrics_cv, "test": metrics_pred,
+        "time": {"execution_time": execution_time}
+    }
+
+    # --- 5. Salvamento do Modelo ---
+    model_filename = f"{data.attribute}_{data.model_name}_model.joblib" # Recomendado usar .joblib
+    model_path = MODELS_DIR / model_filename
+    save_model_to_disk(pipeline, model_path) # save_model_to_disk deveria usar joblib.dump
+    
+    return str(model_path), metrics, images_paths
 
 def train_svr_model(data: ModelData):
     model = SVR(**data.hyperparameters)

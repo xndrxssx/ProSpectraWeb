@@ -21,8 +21,7 @@ function SentDataDevice() {
     local: "",
     filtro: "nenhum",
     sgParams: {
-      window_length: 5, polyorder: 2, deriv: 0,
-      delta: 1, axis: -1, mode: "interp", cval: 0,
+      window_length: 5, polyorder: 2, deriv: 0
     },
     modo: "",
     additionalParam: "",
@@ -191,7 +190,7 @@ function SentDataDevice() {
       setTableData([]);
       setFormData({
         nome_reg: "", variedade: "", data: "", local: "", filtro: "nenhum",
-        sgParams: { window_length: 5, polyorder: 2, deriv: 0, delta: 1, axis: -1, mode: "interp", cval: 0 },
+        sgParams: { window_length: 5, polyorder: 2, deriv: 0 },
         modo: "",
         additionalParam: "",
       });
@@ -256,7 +255,6 @@ function SentDataDevice() {
     fetchVariedades();
     loadCalibrations();
   }, []);
-
   return (
     <div className="min-h-screen w-full flex bg-[#eaeaea] text-[#001E01]">
       <CustomSidebar />
@@ -406,6 +404,14 @@ function SentDataDevice() {
               >
                 {connected ? "Conectado" : "Conectar Espectrômetro"}
               </button>
+              {/* <button
+                // Alteração para demonstração: Força a exibição do formulário de calibração
+                onClick={() => setFormData((prev) => ({ ...prev, modo: "absorbancia" }))}
+                className="flex-1 bg-[#165a16] text-white py-2 px-4 rounded-lg hover:bg-[#1f7e1f]"
+              >
+                Conectar Espectrômetro (Demonstração)
+              </button> */}
+
               <button
                 onClick={handleReadData}
                 className="flex-1 bg-[#165a16] text-white py-2 px-4 rounded-lg hover:bg-[#1f7e1f]"

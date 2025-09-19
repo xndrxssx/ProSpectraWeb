@@ -59,7 +59,7 @@ async def train_model_mlpr(data: ModelData):
 @router.get("/list-models/")
 async def list_models():
     try:
-        model_files = [f.name for f in MODELS_DIR.iterdir() if f.is_file() and f.suffix == '.pkl']
+        model_files = [f.name for f in MODELS_DIR.iterdir() if f.is_file() and f.suffix == '.joblib']
         return {"models": model_files}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao listar modelos: {str(e)}")

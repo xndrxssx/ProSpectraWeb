@@ -27,11 +27,7 @@ function SentLocalData() {
     sgParams: {
       window_length: 5,
       polyorder: 2,
-      deriv: 0,
-      delta: 1,
-      axis: -1,
-      mode: "interp",
-      cval: 0,
+      deriv: 0
     },
   });
   const [error, setError] = useState("");
@@ -228,7 +224,7 @@ function SentLocalData() {
         data: "",
         local: "",
         filtro: "nenhum",
-        sgParams: { window_length: 5, polyorder: 2, deriv: 0, delta: 1, axis: -1, mode: "interp", cval: 0 },
+        sgParams: { window_length: 5, polyorder: 2, deriv: 0},
       });
 
     } catch (err) {

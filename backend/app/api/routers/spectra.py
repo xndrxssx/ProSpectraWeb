@@ -43,7 +43,7 @@ async def save_wavelengths(data: SpectrumData):
         X = np.array(data.X)
         if data.filter == "MSC": filtered_data = apply_msc(X)
         elif data.filter == "SNV": filtered_data = apply_snv(X)
-        elif data.filter == "SG": filtered_data = apply_sg(X, data.sgParams)
+        elif data.filter == "SG": filtered_data = apply_sg(X, **data.sgParams)
         else: filtered_data = X
         
         image_str = plot_filtered_data(filtered_data, np.array(data.wavelengths))

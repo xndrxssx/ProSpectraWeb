@@ -1,11 +1,11 @@
 generator js_client {
   provider = "prisma-client-js"
-  output = "c:/Users/luyza/Documents/ProSpectraWeb/frontend/src/generated/client"
+  output   = "c:/Users/luyza/Documents/ProSpectraWeb/frontend/src/generated/client"
 }
 
 generator py_client {
-  provider = "prisma-client-py"
-  recursive_type_depth = 5
+  provider             = "prisma-client-py"
+  recursive_type_depth = "5"
 }
 
 datasource db {
@@ -20,34 +20,25 @@ model user {
   userType String @default("produtor")
 }
 
-model Variety {
-  id          Int           @id @default(autoincrement())
-  name        String
-  description String        @db.Text
-  attributes  Json          @default("[]") // Adicionando um valor padrão (array vazio)
-}
-
-model Filter {
+model filter {
   id         Int      @id @default(autoincrement())
   name       String
-  type       String // 'MSC', 'SNV', ou 'SG'
+  type       String
   parameters Json
   createdAt  DateTime @default(now())
 }
 
-model Spectra {
-  id        Int      @id @default(autoincrement())
-  name      String
-  content   Json
-  variety   Int
-  datetime  DateTime
-  local     String
-  filter    String
-  graph     String
-  createdAt DateTime @default(now())
+model predictions {
+  id               Int      @id @default(autoincrement())
+  name             String
+  model_name       String
+  spectral_data_id Int
+  prediction       Float
+  createdAt        DateTime @default(now())
+  attribute        String?
 }
 
-model PredictiveModel {
+model predictivemodel {
   id              Int      @id @default(autoincrement())
   model_name      String
   variety         String
@@ -60,30 +51,39 @@ model PredictiveModel {
   updatedAt       DateTime @updatedAt
 }
 
-model SpectrumData {
+model spectra {
+  id        Int      @id @default(autoincrement())
+  name      String
+  content   Json
+  variety   String
+  datetime  DateTime
+  local     String
+  filter    String?
+  graph     String?  @db.LongText
+  createdAt DateTime @default(now())
+}
+
+model spectrumdata {
   id          Int      @id @default(autoincrement())
   dataset     String
-  wavelengths Json     @default("[]")
-  X           Json     @default("[]") // Valor padrão de lista vazia
+  wavelengths Json
+  X           Json
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   image       Json
 }
 
-model TargetData {
+model targetdata {
   id        Int      @id @default(autoincrement())
   attribute String
-  y         Json     @default("[]") // Valor padrão de lista vazia
+  y         Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model Predictions {
-  id               Int      @id @default(autoincrement())
-  name             String
-  model_name       String
-  spectral_data_id Int
-  prediction  Float
-  createdAt   DateTime  @default(now())
-  attribute String ?
+model variety {
+  id          Int    @id @default(autoincrement())
+  name        String
+  description String @db.Text
+  attributes  Json
 }

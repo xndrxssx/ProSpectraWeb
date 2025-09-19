@@ -1,7 +1,7 @@
 import json
 import numpy as np
 from fastapi import APIRouter, HTTPException
-
+import joblib
 from app.schemas.prediction import ApplyModelRequest, SavePredictionRequest, PredictionResponse
 from app.crud import crud_spectrum, crud_prediction
 from app.services.file_service import load_model_from_disk
@@ -12,11 +12,13 @@ router = APIRouter()
 @router.post("/apply-model/")
 async def apply_model(request: ApplyModelRequest):
     try:
+        # Certifique-se de que request.model_name inclui a extensão .joblib
         model_path = MODELS_DIR / request.model_name
         if not model_path.exists():
             raise HTTPException(status_code=404, detail="Modelo não encontrado")
         
-        model = load_model_from_disk(model_path)
+        # 2. AQUI ESTÁ A MUDANÇA: Carregue o modelo diretamente com joblib
+        model = joblib.load(model_path)
         
         spectral_data = await crud_spectrum.get_spectra_by_id(request.spectral_data_id)
         if not spectral_data:
@@ -27,6 +29,7 @@ async def apply_model(request: ApplyModelRequest):
         
         prediction = model.predict(X)
         
+        # Garante que o resultado seja um único número float
         result = float(prediction[0]) if isinstance(prediction, (list, np.ndarray)) else float(prediction)
         
         return {"prediction": result}
